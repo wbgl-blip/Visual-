@@ -22,19 +22,31 @@ const RULES = {
   K: "Make a rule"
 };
 
+/* ================== MEDALS ================== */
+
+const MEDALS = {
+  J: "🖐️ Thumb Tyrant",
+  Q: "❓ Interrogator",
+  7: "☁️ Sky Lord",
+  K: "👑 Rule Maker"
+};
+
 /* ================== APP ================== */
 
 export default function App() {
   const [setup, setSetup] = useState(true);
-  const [players, setPlayers] = useState([{ name: "", drinks: 0 }]);
+  const [gameOver, setGameOver] = useState(false);
+
+  const [players, setPlayers] = useState([{ name: "", drinks: 0, medals: [] }]);
+  const [active, setActive] = useState(0);
 
   const [deck, setDeck] = useState([]);
   const [card, setCard] = useState(null);
-  const [active, setActive] = useState(0);
 
-  const [soundPack, setSoundPack] = useState({});
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  // Persistent roles
+  const [thumbMaster, setThumbMaster] = useState(null);
+  const [questionMaster, setQuestionMaster] = useState(null);
+  const [heavenMaster, setHeavenMaster] = useState(null);
 
   /* ========== HELPERS ========== */
 
@@ -46,23 +58,14 @@ export default function App() {
     return d.sort(() => Math.random() - 0.5);
   }
 
-  function playSound(key) {
-    const sound = soundPack[key];
-    if (!sound) return false;
-    sound.currentTime = 0;
-    sound.play().catch(() => {});
-    return true;
-  }
-
-  function unlockAudio() {
-    Object.values(soundPack).forEach(audio => {
-      audio.volume = 0;
-      audio.play().catch(() => {});
-      audio.pause();
-      audio.currentTime = 0;
-      audio.volume = 1;
-    });
-    setAudioUnlocked(true);
+  function giveMedal(playerIndex, medal) {
+    setPlayers(p =>
+      p.map((pl, i) =>
+        i === playerIndex && !pl.medals.includes(medal)
+          ? { ...pl, medals: [...pl.medals, medal] }
+          : pl
+      )
+    );
   }
 
   /* ========== SETUP ========== */
@@ -77,23 +80,13 @@ export default function App() {
 
   function addPlayer() {
     if (players.length < 8) {
-      setPlayers([...players, { name: "", drinks: 0 }]);
+      setPlayers([...players, { name: "", drinks: 0, medals: [] }]);
     }
   }
 
   function startGame() {
-    unlockAudio();              // 🔓 unlocks browser audio
     setDeck(buildDeck());
     setSetup(false);
-  }
-
-  function loadSoundPack(files) {
-    const pack = {};
-    Array.from(files).forEach(file => {
-      const key = file.name.replace(/\..+$/, "").toLowerCase();
-      pack[key] = new Audio(URL.createObjectURL(file));
-    });
-    setSoundPack(pack);
   }
 
   /* ========== GAME ========== */
@@ -101,20 +94,40 @@ export default function App() {
   function drawCard() {
     if (!deck.length) return;
 
-    // 🎬 START SOUND (FIRST DRAW ONLY)
-    if (!hasStarted && audioUnlocked) {
-      playSound("start");
-      setHasStarted(true);
-    }
-
     const [next, ...rest] = deck;
     setDeck(rest);
     setCard(next);
 
-    // Card-specific sound (a.mp3, j.mp3, etc)
-    playSound(next.rank.toLowerCase());
+    const currentPlayer = active;
 
-    setActive((active + 1) % players.length);
+    // Role logic
+    if (next.rank === "J") {
+      setThumbMaster(currentPlayer);
+      giveMedal(currentPlayer, MEDALS.J);
+    }
+
+    if (next.rank === "Q") {
+      setQuestionMaster(currentPlayer);
+      giveMedal(currentPlayer, MEDALS.Q);
+    }
+
+    if (next.rank === "7") {
+      setHeavenMaster(currentPlayer);
+      giveMedal(currentPlayer, MEDALS[7]);
+    }
+
+    if (next.rank === "K") {
+      giveMedal(currentPlayer, MEDALS.K);
+    }
+
+    // Advance turn
+    const nextTurn = (active + 1) % players.length;
+    setActive(nextTurn);
+
+    // End game
+    if (rest.length === 0) {
+      setGameOver(true);
+    }
   }
 
   function addDrink(i) {
@@ -142,19 +155,27 @@ export default function App() {
         ))}
 
         <button onClick={addPlayer}>+ Add Player</button>
-
-        <label className="upload">
-          Load Sound Pack
-          <input
-            type="file"
-            multiple
-            accept="audio/*"
-            hidden
-            onChange={e => loadSoundPack(e.target.files)}
-          />
-        </label>
-
         <button onClick={startGame}>Start Game</button>
+      </div>
+    );
+  }
+
+  if (gameOver) {
+    return (
+      <div className="app">
+        <h1>Game Over 🍻</h1>
+
+        {players.map((p, i) => (
+          <div key={i} className="player">
+            <strong>{p.name}</strong>
+            <div>🍺 Drinks: {p.drinks}</div>
+            <div>
+              {p.medals.map(m => (
+                <span key={m} className="medal">{m}</span>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -171,7 +192,7 @@ export default function App() {
             <div className="rule">{RULES[card.rank]}</div>
           </>
         ) : (
-          <span>Tap to draw first card</span>
+          <span>Tap to draw</span>
         )}
       </div>
 
@@ -185,11 +206,17 @@ export default function App() {
             key={i}
             className={`player ${i === active ? "active" : ""}`}
           >
-            <strong>{p.name || `Player ${i + 1}`}</strong>
+            <strong>{p.name}</strong>
             <div>🍺 {p.drinks}</div>
             <button onClick={() => addDrink(i)}>+1</button>
           </div>
         ))}
+      </div>
+
+      <div className="roles">
+        <div>🖐️ Thumb: {thumbMaster !== null ? players[thumbMaster].name : "-"}</div>
+        <div>❓ Question: {questionMaster !== null ? players[questionMaster].name : "-"}</div>
+        <div>☁️ Heaven: {heavenMaster !== null ? players[heavenMaster].name : "-"}</div>
       </div>
     </div>
   );
