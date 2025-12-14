@@ -34,13 +34,9 @@ function App() {
         Draw Card
       </button>
 
-      className="card">
-          <h2>{current.card}</h2>
-          <p>{current.text}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default App;
+      {current && (
+  <div className="card">
+    <div className="card-value">{current.card}</div>
+    <div className="card-text">{current.text}</div>
+  </div>
+)}
