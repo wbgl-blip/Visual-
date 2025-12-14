@@ -22,66 +22,20 @@ const RULES = {
   K: "Make a rule"
 };
 
-const MEDALS = {
-  A: "Hydration Hero 💧",
-  7: "Sky Lord ☁️",
-  J: "Sticky Fingers 🖐️",
-  Q: "Interrogator ❓"
-};
-
-/* ------------------ SOUND FX ------------------ */
-
-const fxClick = new Audio("/fx/click.mp3"); // optional
-fxClick.volume = 0.5;
-
-/* ------------------ VOICE ------------------ */
-
-function speakEnhanced(text, enabled) {
-  if (!enabled) return;
-
-  const synth = window.speechSynthesis;
-  if (!synth) return;
-
-  const voice =
-    synth.getVoices().find(v => v.name.includes("Google")) ||
-    synth.getVoices()[0];
-
-  const parts = text.split(" – ");
-
-  fxClick.play().catch(() => {});
-
-  parts.forEach((p, i) => {
-    const u = new SpeechSynthesisUtterance(p);
-    u.voice = voice;
-    u.rate = 0.95;
-    u.pitch = 0.9;
-    u.volume = 1;
-    u.onstart = () => i === 0 && fxClick.play().catch(() => {});
-    synth.speak(u);
-  });
-}
-
 /* ------------------ APP ------------------ */
 
 export default function App() {
   const [setup, setSetup] = useState(true);
   const [players, setPlayers] = useState([
-    { name: "", drinks: 0, medals: [] },
-    { name: "", drinks: 0, medals: [] }
+    { name: "", drinks: 0 }
   ]);
 
   const [deck, setDeck] = useState([]);
   const [card, setCard] = useState(null);
   const [active, setActive] = useState(0);
 
-  const [thumb, setThumb] = useState(null);
-  const [question, setQuestion] = useState(null);
-  const [heaven, setHeaven] = useState(null);
-
-  const [announcerOn, setAnnouncerOn] = useState(true);
-  const [toxicOn, setToxicOn] = useState(false);
-
   const [soundPack, setSoundPack] = useState({});
+  const [hasStarted, setHasStarted] = useState(false);
 
   /* ---------- HELPERS ---------- */
 
@@ -109,8 +63,9 @@ export default function App() {
   }
 
   function addPlayer() {
-    if (players.length < 8)
-      setPlayers([...players, { name: "", drinks: 0, medals: [] }]);
+    if (players.length < 8) {
+      setPlayers([...players, { name: "", drinks: 0 }]);
+    }
   }
 
   function startGame() {
@@ -121,7 +76,7 @@ export default function App() {
   function loadSoundPack(files) {
     const pack = {};
     Array.from(files).forEach(file => {
-      const key = file.name.replace(/\..+$/, "");
+      const key = file.name.replace(/\..+$/, "").toLowerCase();
       pack[key] = new Audio(URL.createObjectURL(file));
     });
     setSoundPack(pack);
@@ -132,36 +87,18 @@ export default function App() {
   function drawCard() {
     if (!deck.length) return;
 
+    // 🔊 PLAY GAME START SOUND (ONLY ON FIRST DRAW)
+    if (!hasStarted) {
+      playSound("start");
+      setHasStarted(true);
+    }
+
     const [next, ...rest] = deck;
     setDeck(rest);
     setCard(next);
 
-    const rule = RULES[next.rank];
-
-    if (!playSound(next.rank)) {
-      speakEnhanced(rule, announcerOn);
-    }
-
-    const name = players[active].name;
-
-    if (next.rank === "J") setThumb(name);
-    if (next.rank === "Q") setQuestion(name);
-    if (next.rank === "7") setHeaven(name);
-
-    const medal = MEDALS[next.rank];
-    if (medal) {
-      setPlayers(p =>
-        p.map((pl, i) =>
-          i === active && !pl.medals.includes(medal)
-            ? { ...pl, medals: [...pl.medals, medal] }
-            : pl
-        )
-      );
-
-      if (!playSound("medal")) {
-        speakEnhanced(medal, announcerOn);
-      }
-    }
+    // Card-specific sound if exists (A.mp3, J.mp3, etc)
+    playSound(next.rank.toLowerCase());
 
     setActive((active + 1) % players.length);
   }
@@ -212,26 +149,6 @@ export default function App() {
     <div className="app">
       <h1>KAD Kings</h1>
 
-      <div className="toggles">
-        <label>
-          <input
-            type="checkbox"
-            checked={announcerOn}
-            onChange={e => setAnnouncerOn(e.target.checked)}
-          />
-          Announcer
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={toxicOn}
-            onChange={e => setToxicOn(e.target.checked)}
-          />
-          ☣️ Shit-Talk
-        </label>
-      </div>
-
       <div className="card" onClick={drawCard}>
         {card ? (
           <>
@@ -240,24 +157,22 @@ export default function App() {
             <div className="rule">{RULES[card.rank]}</div>
           </>
         ) : (
-          <span>Tap to draw</span>
+          <span>Tap to draw first card</span>
         )}
       </div>
 
       <div className="players">
         {players.map((p, i) => (
           <div key={i} className={`player ${i === active ? "active" : ""}`}>
-            <strong>{p.name}</strong>
+            <strong>{p.name || `Player ${i + 1}`}</strong>
             <div>🍺 {p.drinks}</div>
             <button onClick={() => addDrink(i)}>+1</button>
-
-            <div className="medals">
-              {p.medals.map(m => (
-                <span key={m} className="medal">{m}</span>
-              ))}
-            </div>
           </div>
         ))}
+      </div>
+
+      <div className="deck-count">
+        Cards left: {deck.length}
       </div>
     </div>
   );
