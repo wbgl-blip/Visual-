@@ -1,73 +1,92 @@
 import { useEffect, useState } from "react";
+import "./App.css";
+
+// Firebase
 import { ref, onValue, update } from "firebase/database";
 import { db } from "./firebase";
 
 export default function App() {
   const [players, setPlayers] = useState({});
-  const [status, setStatus] = useState("loading");
+  const [name, setName] = useState("");
+  const [gameId] = useState("default-room");
+  const [currentTurn, setCurrentTurn] = useState(null);
 
+  // 🔥 Firebase listener
   useEffect(() => {
-    const gameRef = ref(db, "game");
+    const gameRef = ref(db, `games/${gameId}`);
 
     const unsubscribe = onValue(gameRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setPlayers(data.players || {});
-        setStatus("connected");
-      } else {
-        setStatus("no game data");
-      }
+      const data = snapshot.val() || {};
+      setPlayers(data.players || {});
+      setCurrentTurn(data.currentTurn || null);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [gameId]);
 
+  // ➕ Add player
   const addPlayer = () => {
-    const id = `player_${Date.now()}`;
-    update(ref(db, "game/players"), {
-      [id]: {
-        name: "New Player",
-        drinks: 0,
-      },
+    if (!name.trim()) return;
+
+    const id = Date.now().toString();
+    const updates = {};
+    updates[`games/${gameId}/players/${id}`] = {
+      name,
+      drinks: 0,
+    };
+
+    update(ref(db), updates);
+    setName("");
+  };
+
+  // 🔄 Next turn
+  const nextTurn = () => {
+    const ids = Object.keys(players);
+    if (ids.length === 0) return;
+
+    let nextIndex = 0;
+    if (currentTurn) {
+      const currentIndex = ids.indexOf(currentTurn);
+      nextIndex = (currentIndex + 1) % ids.length;
+    }
+
+    update(ref(db, `games/${gameId}`), {
+      currentTurn: ids[nextIndex],
     });
   };
 
   return (
-    <div style={styles.app}>
-      <h1>Card Drinking Game</h1>
-      <p>Status: {status}</p>
+    <div className="app">
+      <h1>KAD Kings</h1>
 
-      <button onClick={addPlayer}>Add Player</button>
+      {/* Add Player */}
+      <input
+        placeholder="Enter player name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <button onClick={addPlayer}>Join Game</button>
 
-      <div style={styles.players}>
+      {/* Players */}
+      <h2>Players</h2>
+      <div className="player-list">
         {Object.entries(players).map(([id, player]) => (
-          <div key={id} style={styles.card}>
-            <strong>{player.name}</strong>
-            <div>Drinks: {player.drinks}</div>
+          <div
+            key={id}
+            className={`player ${currentTurn === id ? "active" : ""}`}
+          >
+            <span>{player.name}</span>
+            <span>🍺 {player.drinks}</span>
           </div>
         ))}
       </div>
+
+      {/* Turn control */}
+      <button className="secondary" onClick={nextTurn}>
+        Next Turn
+      </button>
+
+      <div className="footer">Firebase synced • Vercel ready</div>
     </div>
   );
 }
-
-const styles = {
-  app: {
-    fontFamily: "sans-serif",
-    padding: 20,
-    textAlign: "center",
-  },
-  players: {
-    display: "flex",
-    gap: 12,
-    justifyContent: "center",
-    marginTop: 20,
-    flexWrap: "wrap",
-  },
-  card: {
-    border: "1px solid #444",
-    borderRadius: 8,
-    padding: 12,
-    width: 140,
-  },
-};
