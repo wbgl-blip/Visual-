@@ -1,237 +1,164 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 
-/* ================== DECK ================== */
+import gameStartSound from "./assets/game-start.mp3";
+import gameOverSound from "./assets/game-over.mp3";
+
+/* =======================
+   CARD + RULE DEFINITIONS
+======================= */
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
 const RULES = {
-  A: "Waterfall – everyone drinks",
-  2: "You – pick someone to drink",
-  3: "Me – you drink",
-  4: "Whores – we all drink",
-  5: "Guys drink",
-  6: "Dicks – we all drink",
-  7: "Heaven – last hand up drinks",
-  8: "Mate – pick a buddy",
-  9: "Rhyme – loser drinks",
-  10: "Categories – loser drinks",
-  J: "Thumb Master",
-  Q: "Question Master",
-  K: "Make a rule"
+  A: "Waterfall",
+  2: "You",
+  3: "Me",
+  4: "Whores – everyone drinks",
+  5: "Guys",
+  6: "Dicks – everyone drinks",
+  7: "Heaven (persistent)",
+  8: "Mate",
+  9: "Rhyme",
+  10: "Categories",
+  J: "Thumb Master (persistent)",
+  Q: "Question Master (persistent)",
+  K: "Make a Rule"
 };
 
-/* ================== MEDALS ================== */
+/* =======================
+   UTILITIES
+======================= */
 
-const MEDALS = {
-  J: "🖐️ Thumb Tyrant",
-  Q: "❓ Interrogator",
-  7: "☁️ Sky Lord",
-  K: "👑 Rule Maker"
-};
+function buildDeck() {
+  const deck = [];
+  SUITS.forEach(suit => {
+    RANKS.forEach(rank => {
+      deck.push({ suit, rank });
+    });
+  });
+  return deck.sort(() => Math.random() - 0.5);
+}
 
-/* ================== APP ================== */
+/* =======================
+   APP
+======================= */
 
 export default function App() {
-  const [setup, setSetup] = useState(true);
-  const [gameOver, setGameOver] = useState(false);
-
   const [players, setPlayers] = useState([
-    { name: "", drinks: 0, medals: [] }
+    { name: "Player 1", drinks: 0 },
+    { name: "Player 2", drinks: 0 }
   ]);
 
-  const [active, setActive] = useState(0);
   const [deck, setDeck] = useState([]);
   const [card, setCard] = useState(null);
+  const [active, setActive] = useState(0);
+  const [gameOver, setGameOver] = useState(false);
 
-  // Persistent roles
   const [thumbMaster, setThumbMaster] = useState(null);
   const [questionMaster, setQuestionMaster] = useState(null);
   const [heavenMaster, setHeavenMaster] = useState(null);
 
-  /* ========== HELPERS ========== */
+  const [hasStarted, setHasStarted] = useState(false);
 
-  function buildDeck() {
-    const d = [];
-    SUITS.forEach(s =>
-      RANKS.forEach(r => d.push({ rank: r, suit: s }))
-    );
-    return d.sort(() => Math.random() - 0.5);
-  }
+  /* =======================
+     AUDIO (CREATED ONCE)
+  ======================= */
 
-  function giveMedal(playerIndex, medal) {
-    setPlayers(p =>
-      p.map((pl, i) =>
-        i === playerIndex && !pl.medals.includes(medal)
-          ? { ...pl, medals: [...pl.medals, medal] }
-          : pl
-      )
-    );
-  }
+  const startAudio = new Audio(gameStartSound);
+  const gameOverAudio = new Audio(gameOverSound);
 
-  /* ========== SETUP ========== */
-
-  function updateName(i, value) {
-    setPlayers(p =>
-      p.map((pl, idx) =>
-        idx === i ? { ...pl, name: value } : pl
-      )
-    );
-  }
-
-  function addPlayer() {
-    if (players.length < 8) {
-      setPlayers([
-        ...players,
-        { name: "", drinks: 0, medals: [] }
-      ]);
-    }
-  }
+  /* =======================
+     GAME FLOW
+  ======================= */
 
   function startGame() {
     setDeck(buildDeck());
-    setSetup(false);
+    setCard(null);
+    setGameOver(false);
+    setHasStarted(false);
+    setActive(0);
+    setThumbMaster(null);
+    setQuestionMaster(null);
+    setHeavenMaster(null);
   }
 
-  /* ========== GAME ========== */
-
   function drawCard() {
-    if (!deck.length) return;
+    if (!deck.length || gameOver) return;
+
+    // 🔊 Play start sound on FIRST draw only
+    if (!hasStarted) {
+      startAudio.play();
+      setHasStarted(true);
+    }
 
     const [next, ...rest] = deck;
     setDeck(rest);
     setCard(next);
 
-    const current = active;
+    // Persistent role logic
+    if (next.rank === "J") setThumbMaster(active);
+    if (next.rank === "Q") setQuestionMaster(active);
+    if (next.rank === "7") setHeavenMaster(active);
 
-    // Roles & medals
-    if (next.rank === "J") {
-      setThumbMaster(current);
-      giveMedal(current, MEDALS.J);
-    }
-
-    if (next.rank === "Q") {
-      setQuestionMaster(current);
-      giveMedal(current, MEDALS.Q);
-    }
-
-    if (next.rank === "7") {
-      setHeavenMaster(current);
-      giveMedal(current, MEDALS[7]);
-    }
-
-    if (next.rank === "K") {
-      giveMedal(current, MEDALS.K);
+    // 🔊 LAST CARD = GAME OVER SOUND
+    if (rest.length === 0) {
+      gameOverAudio.play();
+      setGameOver(true);
+      return;
     }
 
     setActive((active + 1) % players.length);
-
-    if (rest.length === 0) {
-      setGameOver(true);
-    }
   }
 
-  function addDrink(i) {
-    setPlayers(p =>
-      p.map((pl, idx) =>
-        idx === i ? { ...pl, drinks: pl.drinks + 1 } : pl
-      )
-    );
-  }
-
-  /* ========== UI ========== */
-
-  if (setup) {
-    return (
-      <div className="app">
-        <h1>KAD Kings</h1>
-
-        {players.map((p, i) => (
-          <input
-            key={i}
-            placeholder={`Player ${i + 1}`}
-            value={p.name}
-            onChange={e => updateName(i, e.target.value)}
-          />
-        ))}
-
-        <button onClick={addPlayer}>+ Add Player</button>
-        <button onClick={startGame}>Start Game</button>
-      </div>
-    );
-  }
-
-  if (gameOver) {
-    const leaderboard = [...players].sort((a, b) => {
-      if (b.drinks !== a.drinks) return b.drinks - a.drinks;
-      return b.medals.length - a.medals.length;
-    });
-
-    return (
-      <div className="app">
-        <h1>Final Leaderboard 🏆</h1>
-
-        {leaderboard.map((p, i) => (
-          <div key={i} className="player">
-            <strong>
-              {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : ""}
-              {p.name}
-            </strong>
-
-            <div>🍺 Drinks: {p.drinks}</div>
-
-            <div className="medals">
-              {p.medals.length
-                ? p.medals.map(m => (
-                    <span key={m} className="medal">{m}</span>
-                  ))
-                : <span>No medals</span>}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  /* =======================
+     RENDER
+  ======================= */
 
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      <div className="card" onClick={drawCard}>
-        {card ? (
-          <>
-            <div className="rank">{card.rank}</div>
-            <div className="suit">{card.suit}</div>
-            <div className="rule">{RULES[card.rank]}</div>
-          </>
-        ) : (
-          <span>Tap to draw</span>
-        )}
-      </div>
+      {!deck.length && !gameOver && (
+        <button onClick={startGame}>Start Game</button>
+      )}
 
-      <div className="deck-count">
-        Cards left: {deck.length}
-      </div>
+      {deck.length > 0 && !gameOver && (
+        <>
+          <button onClick={drawCard}>Draw Card</button>
 
-      <div className="players">
-        {players.map((p, i) => (
-          <div
-            key={i}
-            className={`player ${i === active ? "active" : ""}`}
-          >
-            <strong>{p.name}</strong>
-            <div>🍺 {p.drinks}</div>
-            <button onClick={() => addDrink(i)}>+1</button>
+          <p>Cards left: {deck.length}</p>
+
+          {card && (
+            <div className="card">
+              <div className="card-value">{card.rank}{card.suit}</div>
+              <div className="card-text">{RULES[card.rank]}</div>
+            </div>
+          )}
+
+          <div className="players">
+            {players.map((p, i) => (
+              <div
+                key={i}
+                className={`player ${i === active ? "active" : ""}`}
+              >
+                {p.name}
+                {thumbMaster === i && " 👆"}
+                {questionMaster === i && " ❓"}
+                {heavenMaster === i && " ☁️"}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
 
-      <div className="roles">
-        <div>🖐️ Thumb: {thumbMaster !== null ? players[thumbMaster].name : "-"}</div>
-        <div>❓ Question: {questionMaster !== null ? players[questionMaster].name : "-"}</div>
-        <div>☁️ Heaven: {heavenMaster !== null ? players[heavenMaster].name : "-"}</div>
-      </div>
+      {gameOver && (
+        <div className="end">
+          <h2>Game Over</h2>
+          <p>Thanks for playing 🍻</p>
+        </div>
+      )}
     </div>
   );
 }
