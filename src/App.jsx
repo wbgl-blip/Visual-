@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 
-/* =======================
-   DECK SETUP
-======================= */
+/* =====================
+   CONSTANTS
+===================== */
+const MAX_SEATS = 8;
 const VALUES = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-const SUITS = ["♠", "♥", "♦", "♣"];
+const SUITS = ["♠","♥","♦","♣"];
 
 const RULE_TEXT = {
   A: "Waterfall – everyone drinks",
@@ -23,36 +24,33 @@ const RULE_TEXT = {
   K: "Make a rule"
 };
 
-/* =======================
-   MEDALS (RARE)
-======================= */
-const MEDALS_BY_VALUE = {
-  J: ["🖐 Thumb Tyrant"],
-  Q: ["🧠 Question Terrorist"],
-  K: ["☠️ Rule Dictator"]
-};
-
-const FINAL_KING_MEDAL = "👑 KINGSLAYER – You drew the final King";
-
-/* =======================
+/* =====================
    APP
-======================= */
+===================== */
 export default function App() {
+  /* Deck */
   const [deck, setDeck] = useState([]);
   const [current, setCurrent] = useState(null);
-  const [medals, setMedals] = useState([]);
   const [kingCount, setKingCount] = useState(0);
 
-  /* Players */
-  const [players, setPlayers] = useState([]);
+  /* Seats */
+  const [seats, setSeats] = useState(
+    Array.from({ length: MAX_SEATS }, (_, i) => ({
+      id: i + 1,
+      name: null
+    }))
+  );
   const [playerName, setPlayerName] = useState("");
-  const [activePlayer, setActivePlayer] = useState(null);
+  const [activeSeat, setActiveSeat] = useState(null);
 
-  /* Persistent Roles */
+  /* Roles (persistent) */
   const [thumbMaster, setThumbMaster] = useState(null);
   const [questionMaster, setQuestionMaster] = useState(null);
   const [pointer, setPointer] = useState(null);
 
+  /* =====================
+     SETUP
+  ===================== */
   useEffect(() => {
     resetDeck();
   }, []);
@@ -64,10 +62,8 @@ export default function App() {
         fullDeck.push({ value: v, suit: s, text: RULE_TEXT[v] })
       )
     );
-
     setDeck(shuffle(fullDeck));
     setCurrent(null);
-    setMedals([]);
     setKingCount(0);
     setThumbMaster(null);
     setQuestionMaster(null);
@@ -75,22 +71,41 @@ export default function App() {
   };
 
   const shuffle = (arr) => {
-    for (let i = arr.length - 1; i > 0; i--) {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
+      [copy[i], copy[j]] = [copy[j], copy[i]];
     }
-    return arr;
+    return copy;
   };
 
+  /* =====================
+     LOBBY
+  ===================== */
   const addPlayer = () => {
     if (!playerName.trim()) return;
-    setPlayers([...players, playerName.trim()]);
+
+    const empty = seats.find(s => s.name === null);
+    if (!empty) {
+      alert("Lobby full");
+      return;
+    }
+
+    setSeats(seats.map(s =>
+      s.id === empty.id ? { ...s, name: playerName.trim() } : s
+    ));
     setPlayerName("");
   };
 
+  const seatName = (id) =>
+    seats.find(s => s.id === id)?.name || "None";
+
+  /* =====================
+     GAME LOGIC
+  ===================== */
   const drawCard = () => {
-    if (!activePlayer) {
-      alert("Select who is drawing");
+    if (!activeSeat) {
+      alert("Select a seat first");
       return;
     }
 
@@ -102,75 +117,57 @@ export default function App() {
     const next = deck[0];
     setDeck(deck.slice(1));
     setCurrent(next);
-    setMedals([]);
 
-    /* KING LOGIC */
     if (next.value === "K") {
-      const newCount = kingCount + 1;
-      setKingCount(newCount);
-
-      setMedals(
-        newCount === 4
-          ? [FINAL_KING_MEDAL]
-          : MEDALS_BY_VALUE.K
-      );
+      setKingCount(k => k + 1);
     }
 
-    /* ROLE LOGIC (PERSISTENT) */
-    if (next.value === "J") {
-      setThumbMaster(activePlayer);
-      setMedals(MEDALS_BY_VALUE.J);
-    }
-
-    if (next.value === "Q") {
-      setQuestionMaster(activePlayer);
-      setMedals(MEDALS_BY_VALUE.Q);
-    }
-
-    if (next.value === "7") {
-      setPointer(activePlayer);
-    }
+    if (next.value === "J") setThumbMaster(activeSeat);
+    if (next.value === "Q") setQuestionMaster(activeSeat);
+    if (next.value === "7") setPointer(activeSeat);
 
     if (navigator.vibrate) navigator.vibrate(60);
   };
 
+  /* =====================
+     UI
+  ===================== */
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      {/* PLAYERS */}
-      <div className="players">
+      {/* ADD PLAYER */}
+      <div>
         <input
           placeholder="Add player"
           value={playerName}
-          onChange={(e) => setPlayerName(e.target.value)}
+          onChange={e => setPlayerName(e.target.value)}
         />
         <button onClick={addPlayer}>Add</button>
-
-        <div className="player-list">
-          {players.map(p => (
-            <button
-              key={p}
-              className={activePlayer === p ? "active-player" : ""}
-              onClick={() => setActivePlayer(p)}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* ROLES DISPLAY */}
+      {/* SEATS */}
+      <div className="seats">
+        {seats.map(seat => (
+          <button
+            key={seat.id}
+            className={activeSeat === seat.id ? "seat active-seat" : "seat"}
+            onClick={() => seat.name && setActiveSeat(seat.id)}
+          >
+            {seat.name ? `Seat ${seat.id}: ${seat.name}` : `Seat ${seat.id}: Empty`}
+          </button>
+        ))}
+      </div>
+
+      {/* ROLES */}
       <div className="roles">
-        <div>🖐 Thumb Master: {thumbMaster || "None"}</div>
-        <div>🧠 Question Master: {questionMaster || "None"}</div>
-        <div>👆 Pointer: {pointer || "None"}</div>
+        <div>🖐 Thumb Master: {seatName(thumbMaster)}</div>
+        <div>🧠 Question Master: {seatName(questionMaster)}</div>
+        <div>👆 Pointer: {seatName(pointer)}</div>
       </div>
 
       {/* KING COUNTER */}
-      <div className="king-counter">
-        Kings drawn: {kingCount} / 4
-      </div>
+      <div>Kings: {kingCount} / 4</div>
 
       <button onClick={drawCard}>Draw Card</button>
 
@@ -180,14 +177,6 @@ export default function App() {
             {current.value}{current.suit}
           </div>
           <div className="card-text">{current.text}</div>
-        </div>
-      )}
-
-      {medals.length > 0 && (
-        <div className="medals">
-          {medals.map((m, i) => (
-            <div key={i} className="medal">{m}</div>
-          ))}
         </div>
       )}
     </div>
