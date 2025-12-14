@@ -1,47 +1,23 @@
 import { useState } from "react";
 import "./App.css";
 
-const RULES = [
-  { card: "A", text: "Waterfall – everyone drinks" },
-  { card: "2", text: "You – pick someone to drink" },
-  { card: "3", text: "Me – you drink" },
-  { card: "4", text: "Floor – last to touch drinks" },
-  { card: "5", text: "Guys drink" },
-  { card: "6", text: "Girls drink" },
-  { card: "7", text: "Heaven – last to raise hand drinks" },
-  { card: "8", text: "Mate – pick a drinking buddy" },
-  { card: "9", text: "Rhyme – loser drinks" },
-  { card: "10", text: "Categories – loser drinks" },
-  { card: "J", text: "Thumb Master" },
-  { card: "Q", text: "Question Master" },
-  { card: "K", text: "Make a rule" }
-];
-
-function App() {
-  const [current, setCurrent] = useState(null);
-
-  const drawCard = () => {
-    const random =
-      RULES[Math.floor(Math.random() * RULES.length)];
-    setCurrent(random);
-  };
+export default function App() {
+  const [message, setMessage] = useState("Draw a card to begin");
 
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      <button onClick={drawCard}>
+      <div className="card">
+        {message}
+      </div>
+
+      <button
+        className="draw-btn"
+        onClick={() => setMessage("🍺 You drew a card")}
+      >
         Draw Card
       </button>
-
-      {current && (
-        <div className="card">
-          <h2>{current.card}</h2>
-          <p>{current.text}</p>
-        </div>
-      )}
     </div>
   );
 }
-
-export default App;
