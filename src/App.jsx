@@ -1,107 +1,48 @@
-import { ref, set } from "firebase/database";
-import { db } from "./firebase";
-
-set(ref(db, "status"), {
-  connected: true,
-  time: Date.now()
-});import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ref, onValue, update } from "firebase/database";
 import { db } from "./firebase";
 
-const GAME_ID = "default-room";
-
-const FULL_DECK = [
-  "A♠","2♠","3♠","4♠","5♠","6♠","7♠","8♠","9♠","10♠","J♠","Q♠","K♠",
-  "A♥","2♥","3♥","4♥","5♥","6♥","7♥","8♥","9♥","10♥","J♥","Q♥","K♥",
-  "A♦","2♦","3♦","4♦","5♦","6♦","7♦","8♦","9♦","10♦","J♦","Q♦","K♦",
-  "A♣","2♣","3♣","4♣","5♣","6♣","7♣","8♣","9♣","10♣","J♣","Q♣","K♣"
-];
-
 export default function App() {
-  const [game, setGame] = useState(null);
+  const [players, setPlayers] = useState({});
+  const [gameStarted, setGameStarted] = useState(false);
 
   useEffect(() => {
-    const gameRef = ref(db, `games/${GAME_ID}`);
+    const playersRef = ref(db, "players");
 
-    onValue(gameRef, snap => {
-      if (!snap.exists()) {
-        update(gameRef, {
-          deck: shuffle(FULL_DECK),
-          deckCount: 52,
-          currentCard: null,
-          currentSeat: 0,
-          seats: Array.from({ length: 8 }, (_, i) => ({
-            name: `Seat ${i + 1}`,
-            drinks: 0
-          }))
-        });
-      } else {
-        setGame(snap.val());
+    const unsubscribe = onValue(playersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setPlayers(snapshot.val());
       }
     });
+
+    return () => unsubscribe();
   }, []);
 
-  function shuffle(arr) {
-    return [...arr].sort(() => Math.random() - 0.5);
-  }
-
-  function drawCard() {
-    if (!game.deck.length) return;
-
-    const card = game.deck[0];
-    const newDeck = game.deck.slice(1);
-
-    update(ref(db, `games/${GAME_ID}`), {
-      deck: newDeck,
-      deckCount: newDeck.length,
-      currentCard: card,
-      currentSeat: (game.currentSeat + 1) % game.seats.length
+  const addDrink = (playerId) => {
+    const playerRef = ref(db, `players/${playerId}`);
+    update(playerRef, {
+      drinks: (players[playerId]?.drinks || 0) + 1,
     });
-  }
-
-  function addDrink(i) {
-    update(ref(db, `games/${GAME_ID}/seats/${i}`), {
-      drinks: game.seats[i].drinks + 1
-    });
-  }
-
-  function renameSeat(i, name) {
-    update(ref(db, `games/${GAME_ID}/seats/${i}`), { name });
-  }
-
-  if (!game) return <div>Loading…</div>;
+  };
 
   return (
-    <div className="app">
-      <h1>KAD Kings</h1>
+    <div style={{ padding: 20 }}>
+      <h1>🍻 Multiplayer Drinking Game</h1>
 
-      <div className="info">
-        🃏 {game.deckCount} cards left
-      </div>
-
-      {game.currentCard && (
-        <div className="card">
-          Drew: <strong>{game.currentCard}</strong>
-        </div>
+      {!gameStarted && (
+        <button onClick={() => setGameStarted(true)}>
+          Start Game
+        </button>
       )}
 
-      {game.seats.map((seat, i) => (
-        <div
-          key={i}
-          className={`seat ${i === game.currentSeat ? "active" : ""}`}
-        >
-          <input
-            value={seat.name}
-            onChange={e => renameSeat(i, e.target.value)}
-          />
-          <span>🍺 {seat.drinks}</span>
-          <button onClick={() => addDrink(i)}>+1</button>
-        </div>
-      ))}
-
-      <button className="draw" onClick={drawCard}>
-        Draw Card
-      </button>
+      {gameStarted &&
+        Object.entries(players).map(([id, player]) => (
+          <div key={id} style={{ marginTop: 10 }}>
+            <strong>{player.name}</strong>
+            <div>Drinks: {player.drinks || 0}</div>
+            <button onClick={() => addDrink(id)}>+ Drink</button>
+          </div>
+        ))}
     </div>
   );
 }
