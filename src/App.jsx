@@ -1,7 +1,7 @@
 import { useState } from "react";
 import "./App.css";
 
-/* ------------------ DECK ------------------ */
+/* ================== DECK ================== */
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
@@ -22,43 +22,56 @@ const RULES = {
   K: "Make a rule"
 };
 
-/* ------------------ APP ------------------ */
+/* ================== APP ================== */
 
 export default function App() {
   const [setup, setSetup] = useState(true);
-  const [players, setPlayers] = useState([
-    { name: "", drinks: 0 }
-  ]);
+  const [players, setPlayers] = useState([{ name: "", drinks: 0 }]);
 
   const [deck, setDeck] = useState([]);
   const [card, setCard] = useState(null);
   const [active, setActive] = useState(0);
 
   const [soundPack, setSoundPack] = useState({});
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
 
-  /* ---------- HELPERS ---------- */
+  /* ========== HELPERS ========== */
 
   function buildDeck() {
     const d = [];
-    SUITS.forEach(s => RANKS.forEach(r => d.push({ rank: r, suit: s })));
+    SUITS.forEach(s =>
+      RANKS.forEach(r => d.push({ rank: r, suit: s }))
+    );
     return d.sort(() => Math.random() - 0.5);
   }
 
   function playSound(key) {
-    if (soundPack[key]) {
-      soundPack[key].currentTime = 0;
-      soundPack[key].play();
-      return true;
-    }
-    return false;
+    const sound = soundPack[key];
+    if (!sound) return false;
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
+    return true;
   }
 
-  /* ---------- SETUP ---------- */
+  function unlockAudio() {
+    Object.values(soundPack).forEach(audio => {
+      audio.volume = 0;
+      audio.play().catch(() => {});
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = 1;
+    });
+    setAudioUnlocked(true);
+  }
+
+  /* ========== SETUP ========== */
 
   function updateName(i, value) {
     setPlayers(p =>
-      p.map((pl, idx) => (idx === i ? { ...pl, name: value } : pl))
+      p.map((pl, idx) =>
+        idx === i ? { ...pl, name: value } : pl
+      )
     );
   }
 
@@ -69,6 +82,7 @@ export default function App() {
   }
 
   function startGame() {
+    unlockAudio();              // 🔓 unlocks browser audio
     setDeck(buildDeck());
     setSetup(false);
   }
@@ -82,13 +96,13 @@ export default function App() {
     setSoundPack(pack);
   }
 
-  /* ---------- GAME ---------- */
+  /* ========== GAME ========== */
 
   function drawCard() {
     if (!deck.length) return;
 
-    // 🔊 PLAY GAME START SOUND (ONLY ON FIRST DRAW)
-    if (!hasStarted) {
+    // 🎬 START SOUND (FIRST DRAW ONLY)
+    if (!hasStarted && audioUnlocked) {
       playSound("start");
       setHasStarted(true);
     }
@@ -97,7 +111,7 @@ export default function App() {
     setDeck(rest);
     setCard(next);
 
-    // Card-specific sound if exists (A.mp3, J.mp3, etc)
+    // Card-specific sound (a.mp3, j.mp3, etc)
     playSound(next.rank.toLowerCase());
 
     setActive((active + 1) % players.length);
@@ -111,7 +125,7 @@ export default function App() {
     );
   }
 
-  /* ---------- UI ---------- */
+  /* ========== UI ========== */
 
   if (setup) {
     return (
@@ -161,18 +175,21 @@ export default function App() {
         )}
       </div>
 
+      <div className="deck-count">
+        Cards left: {deck.length}
+      </div>
+
       <div className="players">
         {players.map((p, i) => (
-          <div key={i} className={`player ${i === active ? "active" : ""}`}>
+          <div
+            key={i}
+            className={`player ${i === active ? "active" : ""}`}
+          >
             <strong>{p.name || `Player ${i + 1}`}</strong>
             <div>🍺 {p.drinks}</div>
             <button onClick={() => addDrink(i)}>+1</button>
           </div>
         ))}
-      </div>
-
-      <div className="deck-count">
-        Cards left: {deck.length}
       </div>
     </div>
   );
