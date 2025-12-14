@@ -1,1 +1,4 @@
 npm install firebase
+git add .
+git commit -m "install firebase"
+git push
