@@ -1,222 +1,186 @@
-import { useEffect, useState } from "react";
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
-import { db } from "./firebase";
+import { useState } from "react";
 import "./App.css";
 
-/* ================= DECK ================= */
-const suits = ["♠", "♥", "♦", "♣"];
-const ranks = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+/* ===== CARD SETUP ===== */
+const SUITS = ["♠", "♥", "♦", "♣"];
+const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
-const buildDeck = () =>
-  suits.flatMap(s => ranks.map(r => ({ suit: s, rank: r })));
+function buildDeck() {
+  const deck = [];
+  SUITS.forEach(suit => {
+    RANKS.forEach(rank => {
+      deck.push({ suit, rank });
+    });
+  });
+  return shuffle(deck);
+}
 
-const shuffle = deck => [...deck].sort(() => Math.random() - 0.5);
+function shuffle(arr) {
+  return [...arr].sort(() => Math.random() - 0.5);
+}
 
-/* ================= RULES ================= */
-const CARD_RULES = {
-  A: "Waterfall — everyone drinks",
-  2: "You — choose someone to drink",
-  3: "Me — you drink",
-  4: "Whores — we all drink",
-  5: "Guys drink",
-  6: "Dicks — we all drink",
-  7: "Heaven — last hand drinks",
-  8: "Mate — choose a buddy",
-  9: "Rhyme — loser drinks",
-  10: "Categories — loser drinks",
-  J: "Thumb Master",
-  Q: "Question Master",
-  K: "Make a rule"
-};
+/* ===== KINGS RULES ===== */
+function getRuleText(card) {
+  switch (card.rank) {
+    case "A": return "Waterfall – everyone drinks";
+    case "2": return "You – pick someone to drink";
+    case "3": return "Me – you drink";
+    case "4": return "Whores – we all drink";
+    case "5": return "Guys drink";
+    case "6": return "Dicks – we all drink";
+    case "7": return "Heaven – last to point drinks";
+    case "8": return "Mate – pick a drinking buddy";
+    case "9": return "Rhyme – loser drinks";
+    case "10": return "Categories – loser drinks";
+    case "J": return "Thumb Master";
+    case "Q": return "Question Master";
+    case "K": return "Make a rule";
+    default: return "";
+  }
+}
 
 export default function App() {
-  const [roomCode, setRoomCode] = useState("");
-  const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
-  const [name, setName] = useState("");
+  const [nameInput, setNameInput] = useState("");
   const [deck, setDeck] = useState([]);
   const [discard, setDiscard] = useState([]);
   const [turn, setTurn] = useState(0);
+  const [roles, setRoles] = useState({
+    thumb: null,
+    question: null,
+    heaven: null,
+    king: null
+  });
+  const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const [flipped, setFlipped] = useState(false);
 
-  const [thumbMaster, setThumbMaster] = useState(null);
-  const [questionMaster, setQuestionMaster] = useState(null);
-  const [heavenMaster, setHeavenMaster] = useState(null);
-  const [ruleMaster, setRuleMaster] = useState(null);
-
-  const [playerId] = useState(() => crypto.randomUUID());
-
-  /* ================= ROOM ================= */
-  async function createRoom() {
-    const code = Math.random().toString(36).substring(2,7).toUpperCase();
-    await setDoc(doc(db, "rooms", code), {
-      hostId: playerId,
-      players: [],
-      deck: [],
-      discard: [],
-      turn: 0,
-      gameOver: false,
-      thumbMaster: null,
-      questionMaster: null,
-      heavenMaster: null,
-      ruleMaster: null
-    });
-    setRoomCode(code);
+  /* ===== PLAYER SETUP ===== */
+  function addPlayer() {
+    if (!nameInput.trim()) return;
+    setPlayers([...players, { name: nameInput, drinks: 0 }]);
+    setNameInput("");
   }
 
-  async function joinRoom() {
-    if (!roomCode || !name.trim()) return;
-
-    const ref = doc(db, "rooms", roomCode);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return alert("Room not found");
-
-    const data = snap.data();
-    if (data.players.some(p => p.id === playerId)) return;
-
-    await updateDoc(ref, {
-      players: [...data.players, { id: playerId, name, drinks: 0 }]
-    });
+  function startGame() {
+    if (players.length < 2) return;
+    setDeck(buildDeck());
+    setDiscard([]);
+    setTurn(0);
+    setRoles({ thumb: null, question: null, heaven: null, king: null });
+    setGameStarted(true);
+    setGameOver(false);
   }
 
-  /* ================= SYNC ================= */
-  useEffect(() => {
-    if (!roomCode) return;
-    return onSnapshot(doc(db, "rooms", roomCode), snap => {
-      if (!snap.exists()) return;
-      const d = snap.data();
-      setRoom(d);
-      setPlayers(d.players || []);
-      setDeck(d.deck || []);
-      setDiscard(d.discard || []);
-      setTurn(d.turn ?? 0);
-      setGameOver(d.gameOver ?? false);
-      setThumbMaster(d.thumbMaster);
-      setQuestionMaster(d.questionMaster);
-      setHeavenMaster(d.heavenMaster);
-      setRuleMaster(d.ruleMaster);
-    });
-  }, [roomCode]);
-
-  /* ================= START GAME ================= */
-  async function startGame() {
-    if (room.hostId !== playerId) {
-      alert("Only the host can start the game");
-      return;
-    }
-    if (players.length < 2) {
-      alert("Need at least 2 players");
-      return;
-    }
-
-    const freshDeck = shuffle(buildDeck());
-
-    await updateDoc(doc(db, "rooms", roomCode), {
-      deck: freshDeck,
-      discard: [],
-      turn: 0,
-      gameOver: false,
-      thumbMaster: null,
-      questionMaster: null,
-      heavenMaster: null,
-      ruleMaster: null
-    });
-  }
-
-  /* ================= DRAW CARD ================= */
-  async function drawCard() {
-    if (!deck || deck.length === 0) {
-      alert("Deck is empty");
-      return;
-    }
-
-    setFlipped(false);
+  /* ===== DRAW CARD ===== */
+  function drawCard() {
+    if (deck.length === 0) return;
 
     const nextDeck = [...deck];
     const card = nextDeck.pop();
-    const nextPlayers = [...players];
 
+    const nextPlayers = [...players];
     nextPlayers[turn].drinks += 1;
 
-    const updates = {};
-    if (card.rank === "J") updates.thumbMaster = nextPlayers[turn].id;
-    if (card.rank === "Q") updates.questionMaster = nextPlayers[turn].id;
-    if (card.rank === "7") updates.heavenMaster = nextPlayers[turn].id;
-    if (card.rank === "K") updates.ruleMaster = nextPlayers[turn].id;
+    const nextRoles = { ...roles };
+    if (card.rank === "J") nextRoles.thumb = turn;
+    if (card.rank === "Q") nextRoles.question = turn;
+    if (card.rank === "7") nextRoles.heaven = turn;
+    if (card.rank === "K") nextRoles.king = turn;
 
-    setTimeout(async () => {
-      setFlipped(true);
-      await updateDoc(doc(db, "rooms", roomCode), {
-        deck: nextDeck,
-        discard: [...discard, card],
-        players: nextPlayers,
-        turn: nextDeck.length ? (turn + 1) % players.length : turn,
-        gameOver: nextDeck.length === 0,
-        ...updates
-      });
-    }, 200);
+    setPlayers(nextPlayers);
+    setRoles(nextRoles);
+    setDeck(nextDeck);
+    setDiscard([...discard, card]);
+
+    if (nextDeck.length === 0) {
+      setGameOver(true);
+    } else {
+      setTurn((turn + 1) % players.length);
+    }
   }
 
-  const lastCard = discard.at(-1);
-
-  /* ================= UI ================= */
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      {!roomCode && (
-        <>
-          <button onClick={createRoom}>Create Room</button>
-          <input placeholder="ROOM CODE" onChange={e=>setRoomCode(e.target.value.toUpperCase())}/>
-          <input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)}/>
-          <button onClick={joinRoom}>Join</button>
-        </>
+      {/* SETUP SCREEN */}
+      {!gameStarted && (
+        <div className="setup">
+          <input
+            value={nameInput}
+            placeholder="Player name"
+            onChange={e => setNameInput(e.target.value)}
+          />
+          <button onClick={addPlayer}>Add Player</button>
+
+          <ul>
+            {players.map((p, i) => (
+              <li key={i}>{p.name}</li>
+            ))}
+          </ul>
+
+          <button className="start" onClick={startGame}>
+            Start Game
+          </button>
+        </div>
       )}
 
-      {roomCode && deck.length === 0 && !gameOver && (
+      {/* GAME SCREEN */}
+      {gameStarted && !gameOver && (
         <>
-          <h2>Room: {roomCode}</h2>
-          <ul>
-            {players.map((p, i)=>(
-              <li key={p.id} className={i === turn ? "active-player" : ""}>
+          <h2>
+            Turn: <span className="active">{players[turn].name}</span>
+          </h2>
+
+          <button className="draw" onClick={drawCard}>
+            Draw Card
+          </button>
+
+          <p>Cards left: {deck.length}</p>
+
+          {discard.length > 0 && (
+            <div className="card">
+              <div className="rank">
+                {discard[discard.length - 1].rank}
+                {discard[discard.length - 1].suit}
+              </div>
+              <div className="rule">
+                {getRuleText(discard[discard.length - 1])}
+              </div>
+            </div>
+          )}
+
+          <h3>Players</h3>
+          <ul className="players">
+            {players.map((p, i) => (
+              <li key={i} className={i === turn ? "active" : ""}>
                 {p.name}
-                {p.id === thumbMaster && " 🖐"}
-                {p.id === questionMaster && " ❓"}
-                {p.id === heavenMaster && " ☁️"}
-                {p.id === ruleMaster && " 👑"}
+                {roles.thumb === i && " 🖐"}
+                {roles.question === i && " ❓"}
+                {roles.heaven === i && " ☁️"}
+                {roles.king === i && " 👑"}
+                — {p.drinks} drinks
               </li>
             ))}
           </ul>
-          {room?.hostId === playerId && (
-            <button onClick={startGame}>Start Game</button>
-          )}
         </>
       )}
 
-      {deck.length > 0 && !gameOver && (
-        <>
-          <h2>
-            Turn: <span className="active-player">{players[turn]?.name}</span>
-          </h2>
-
-          <button onClick={drawCard}>Draw Card</button>
-          <p>Cards left: {deck.length}</p>
-
-          <p className="rule-text">
-            {lastCard && CARD_RULES[lastCard.rank]}
-          </p>
-
-          <div className={`card-container ${flipped ? "flipped" : ""}`}>
-            <div className="card-face card-back">🂠</div>
-            <div className="card-face card-front">
-              {lastCard?.rank}{lastCard?.suit}
-            </div>
-          </div>
-        </>
+      {/* GAME OVER */}
+      {gameOver && (
+        <div className="game-over">
+          <h2>Game Over</h2>
+          <ol>
+            {[...players]
+              .sort((a, b) => b.drinks - a.drinks)
+              .map((p, i) => (
+                <li key={i}>
+                  {p.name} – {p.drinks} drinks
+                </li>
+              ))}
+          </ol>
+        </div>
       )}
-
-      {gameOver && <h2>Game Over</h2>}
     </div>
   );
 }
