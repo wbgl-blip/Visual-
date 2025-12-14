@@ -2,73 +2,98 @@ import { useState, useEffect } from "react";
 import "./App.css";
 
 /* =======================
-   RULES
+   DECK SETUP
 ======================= */
-const BASE_RULES = [
-  { card: "A", text: "Waterfall – everyone drinks" },
-  { card: "2", text: "You – pick someone to drink" },
-  { card: "3", text: "Me – you drink" },
-  { card: "4", text: "Whores – we all drink" },
-  { card: "5", text: "Guys drink" },
-  { card: "6", text: "Dicks – we all drink" },
-  { card: "7", text: "Heaven – last to raise hand drinks" },
-  { card: "8", text: "Mate – pick a drinking buddy" },
-  { card: "9", text: "Rhyme – loser drinks" },
-  { card: "10", text: "Categories – loser drinks" },
-  { card: "J", text: "Thumb Master" },
-  { card: "Q", text: "Question Master" },
-  { card: "K", text: "Make a rule" }
-];
+const VALUES = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+const SUITS = ["♠", "♥", "♦", "♣"];
 
-const NSFW_RULES = [
-  { card: "J", text: "Degenerate Thumb Master 😈" },
-  { card: "Q", text: "Toxic Question Master ☠️" },
-  { card: "K", text: "Make a cursed rule" }
-];
+const RULE_TEXT = {
+  A: "Waterfall – everyone drinks",
+  2: "You – pick someone to drink",
+  3: "Me – you drink",
+  4: "Whores – we all drink",
+  5: "Guys drink",
+  6: "Dicks – we all drink",
+  7: "Heaven – Pointer",
+  8: "Mate – pick a drinking buddy",
+  9: "Rhyme – loser drinks",
+  10: "Categories – loser drinks",
+  J: "Thumb Master",
+  Q: "Question Master",
+  K: "Make a rule"
+};
 
 /* =======================
-   MEDALS BY CARD
+   MEDALS (RARE)
 ======================= */
-const MEDALS_BY_CARD = {
-  A: ["🌊 Waterfall Warrior"],
-  4: ["🔥 Certified Degenerate"],
-  6: ["🔥 Certified Degenerate"],
-  7: ["🙌 Heaven Sprinter"],
-  8: ["🍻 Ride or Die"],
-  9: ["🎤 Rhyme Criminal"],
-  10: ["📚 Category Goblin"],
+const MEDALS_BY_VALUE = {
   J: ["🖐 Thumb Tyrant"],
   Q: ["🧠 Question Terrorist"],
   K: ["☠️ Rule Dictator"]
 };
 
+const FINAL_KING_MEDAL = "👑 KINGSLAYER – You drew the final King";
+
+/* =======================
+   APP
+======================= */
 export default function App() {
   const [deck, setDeck] = useState([]);
   const [current, setCurrent] = useState(null);
-  const [nsfw, setNsfw] = useState(false);
   const [medals, setMedals] = useState([]);
+  const [kingCount, setKingCount] = useState(0);
 
-  /* Build deck */
+  /* Players */
+  const [players, setPlayers] = useState([]);
+  const [playerName, setPlayerName] = useState("");
+  const [activePlayer, setActivePlayer] = useState(null);
+
+  /* Persistent Roles */
+  const [thumbMaster, setThumbMaster] = useState(null);
+  const [questionMaster, setQuestionMaster] = useState(null);
+  const [pointer, setPointer] = useState(null);
+
   useEffect(() => {
     resetDeck();
-  }, [nsfw]);
+  }, []);
 
   const resetDeck = () => {
-    const rules = nsfw ? [...BASE_RULES, ...NSFW_RULES] : BASE_RULES;
-    setDeck(shuffle([...rules]));
+    const fullDeck = [];
+    VALUES.forEach(v =>
+      SUITS.forEach(s =>
+        fullDeck.push({ value: v, suit: s, text: RULE_TEXT[v] })
+      )
+    );
+
+    setDeck(shuffle(fullDeck));
     setCurrent(null);
     setMedals([]);
+    setKingCount(0);
+    setThumbMaster(null);
+    setQuestionMaster(null);
+    setPointer(null);
   };
 
-  const shuffle = (array) => {
-    for (let i = array.length - 1; i > 0; i--) {
+  const shuffle = (arr) => {
+    for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    return array;
+    return arr;
+  };
+
+  const addPlayer = () => {
+    if (!playerName.trim()) return;
+    setPlayers([...players, playerName.trim()]);
+    setPlayerName("");
   };
 
   const drawCard = () => {
+    if (!activePlayer) {
+      alert("Select who is drawing");
+      return;
+    }
+
     if (deck.length === 0) {
       resetDeck();
       return;
@@ -77,54 +102,91 @@ export default function App() {
     const next = deck[0];
     setDeck(deck.slice(1));
     setCurrent(next);
+    setMedals([]);
 
-    // Award medals tied to card
-    const earned = MEDALS_BY_CARD[next.card] || [];
-    setMedals(earned);
+    /* KING LOGIC */
+    if (next.value === "K") {
+      const newCount = kingCount + 1;
+      setKingCount(newCount);
 
-    triggerFeedback();
-  };
+      setMedals(
+        newCount === 4
+          ? [FINAL_KING_MEDAL]
+          : MEDALS_BY_VALUE.K
+      );
+    }
 
-  const triggerFeedback = () => {
+    /* ROLE LOGIC (PERSISTENT) */
+    if (next.value === "J") {
+      setThumbMaster(activePlayer);
+      setMedals(MEDALS_BY_VALUE.J);
+    }
+
+    if (next.value === "Q") {
+      setQuestionMaster(activePlayer);
+      setMedals(MEDALS_BY_VALUE.Q);
+    }
+
+    if (next.value === "7") {
+      setPointer(activePlayer);
+    }
+
     if (navigator.vibrate) navigator.vibrate(60);
-
-    try {
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      osc.frequency.value = 440;
-      osc.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.1);
-    } catch {}
   };
 
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      {/* NSFW TOGGLE */}
-      <label className="switch">
-        <input type="checkbox" checked={nsfw} onChange={() => setNsfw(!nsfw)} />
-        <span className="slider" />
-        <span className="label">NSFW 😈</span>
-      </label>
+      {/* PLAYERS */}
+      <div className="players">
+        <input
+          placeholder="Add player"
+          value={playerName}
+          onChange={(e) => setPlayerName(e.target.value)}
+        />
+        <button onClick={addPlayer}>Add</button>
+
+        <div className="player-list">
+          {players.map(p => (
+            <button
+              key={p}
+              className={activePlayer === p ? "active-player" : ""}
+              onClick={() => setActivePlayer(p)}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ROLES DISPLAY */}
+      <div className="roles">
+        <div>🖐 Thumb Master: {thumbMaster || "None"}</div>
+        <div>🧠 Question Master: {questionMaster || "None"}</div>
+        <div>👆 Pointer: {pointer || "None"}</div>
+      </div>
+
+      {/* KING COUNTER */}
+      <div className="king-counter">
+        Kings drawn: {kingCount} / 4
+      </div>
 
       <button onClick={drawCard}>Draw Card</button>
 
       {current && (
         <div className="card">
-          <div className="card-value">{current.card}</div>
+          <div className="card-value">
+            {current.value}{current.suit}
+          </div>
           <div className="card-text">{current.text}</div>
         </div>
       )}
 
-      {/* MEDALS */}
       {medals.length > 0 && (
         <div className="medals">
           {medals.map((m, i) => (
-            <div key={i} className="medal">
-              {m}
-            </div>
+            <div key={i} className="medal">{m}</div>
           ))}
         </div>
       )}
