@@ -35,7 +35,6 @@ export default function App() {
   return (
     <div style={styles.app}>
       <h1>Card Drinking Game</h1>
-
       <p>Status: {status}</p>
 
       <button onClick={addPlayer}>Add Player</button>
