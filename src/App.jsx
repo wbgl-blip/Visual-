@@ -130,13 +130,12 @@ export default function App() {
     <div style={styles.container}>
       <h1 style={styles.title}>👑 KAD Kings</h1>
 
-      <label style={styles.toggle}>
-        <input
-          type="checkbox"
-          checked={toxicMode}
-          onChange={() => setToxicMode(!toxicMode)}
-        />
-        <span> Toxic Mode</span>
-      </label>
-
-      <
+      <div style={styles.toggle}>
+  <input
+    id="toxic-toggle"
+    type="checkbox"
+    checked={toxicMode}
+    onChange={() => setToxicMode(!toxicMode)}
+  />
+  <label htmlFor="toxic-toggle"> Toxic Mode</label>
+</div>
