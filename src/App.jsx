@@ -34,8 +34,7 @@ function App() {
         Draw Card
       </button>
 
-      {current && (
-        <div className="card">
+      className="card">
           <h2>{current.card}</h2>
           <p>{current.text}</p>
         </div>
