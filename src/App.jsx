@@ -40,7 +40,6 @@ export default function App() {
   const [gameOver, setGameOver] = useState(false);
   const [flipped, setFlipped] = useState(false);
 
-  // Persistent roles
   const [thumbMaster, setThumbMaster] = useState(null);
   const [questionMaster, setQuestionMaster] = useState(null);
   const [heavenMaster, setHeavenMaster] = useState(null);
@@ -88,11 +87,11 @@ export default function App() {
       if (!snap.exists()) return;
       const d = snap.data();
       setRoom(d);
-      setPlayers(d.players);
-      setDeck(d.deck);
-      setDiscard(d.discard);
-      setTurn(d.turn);
-      setGameOver(d.gameOver);
+      setPlayers(d.players || []);
+      setDeck(d.deck || []);
+      setDiscard(d.discard || []);
+      setTurn(d.turn ?? 0);
+      setGameOver(d.gameOver ?? false);
       setThumbMaster(d.thumbMaster);
       setQuestionMaster(d.questionMaster);
       setHeavenMaster(d.heavenMaster);
@@ -100,13 +99,21 @@ export default function App() {
     });
   }, [roomCode]);
 
-  /* ================= START ================= */
+  /* ================= START GAME ================= */
   async function startGame() {
-    if (room.hostId !== playerId) return;
-    if (players.length < 2) return alert("Need at least 2 players");
+    if (room.hostId !== playerId) {
+      alert("Only the host can start the game");
+      return;
+    }
+    if (players.length < 2) {
+      alert("Need at least 2 players");
+      return;
+    }
+
+    const freshDeck = shuffle(buildDeck());
 
     await updateDoc(doc(db, "rooms", roomCode), {
-      deck: shuffle(buildDeck()),
+      deck: freshDeck,
       discard: [],
       turn: 0,
       gameOver: false,
@@ -117,19 +124,22 @@ export default function App() {
     });
   }
 
-  /* ================= DRAW ================= */
+  /* ================= DRAW CARD ================= */
   async function drawCard() {
-    if (!deck.length) return;
+    if (!deck || deck.length === 0) {
+      alert("Deck is empty");
+      return;
+    }
 
     setFlipped(false);
 
     const nextDeck = [...deck];
     const card = nextDeck.pop();
     const nextPlayers = [...players];
+
     nextPlayers[turn].drinks += 1;
 
     const updates = {};
-
     if (card.rank === "J") updates.thumbMaster = nextPlayers[turn].id;
     if (card.rank === "Q") updates.questionMaster = nextPlayers[turn].id;
     if (card.rank === "7") updates.heavenMaster = nextPlayers[turn].id;
@@ -178,14 +188,20 @@ export default function App() {
               </li>
             ))}
           </ul>
-          {room?.hostId===playerId && <button onClick={startGame}>Start Game</button>}
+          {room?.hostId === playerId && (
+            <button onClick={startGame}>Start Game</button>
+          )}
         </>
       )}
 
-      {deck.length>0 && !gameOver && (
+      {deck.length > 0 && !gameOver && (
         <>
-          <h2>Turn: <span className="active-player">{players[turn]?.name}</span></h2>
+          <h2>
+            Turn: <span className="active-player">{players[turn]?.name}</span>
+          </h2>
+
           <button onClick={drawCard}>Draw Card</button>
+          <p>Cards left: {deck.length}</p>
 
           <p className="rule-text">
             {lastCard && CARD_RULES[lastCard.rank]}
@@ -199,6 +215,8 @@ export default function App() {
           </div>
         </>
       )}
+
+      {gameOver && <h2>Game Over</h2>}
     </div>
   );
 }
