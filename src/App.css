@@ -1,47 +1,61 @@
 body {
-  background: #0e0e0e;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #111;
   color: white;
-  font-family: sans-serif;
 }
 
 .app {
-  max-width: 500px;
-  margin: auto;
   padding: 20px;
   text-align: center;
 }
 
-input {
-  padding: 8px;
-  margin-right: 6px;
-}
-
 button {
-  padding: 8px 14px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: none;
+  background: #fff;
+  font-weight: 600;
   margin: 6px;
-  cursor: pointer;
-}
-
-.start {
-  background: green;
-  color: white;
-}
-
-.draw {
-  background: #444;
-  color: white;
 }
 
 .card {
-  font-size: 48px;
-  margin: 20px;
+  font-size: 3rem;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  color: #000;
+  border-radius: 16px;
+  width: 120px;
 }
 
 .active {
-  color: #00ff99;
-  font-weight: bold;
+  color: #00ffcc;
 }
 
-.game-over {
-  margin-top: 30px;
+.seats {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.seat {
+  padding: 10px;
+  background: #222;
+  border-radius: 10px;
+}
+
+.medals span {
+  margin-left: 4px;
+}
+
+.popup {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+  padding: 12px 20px;
+  border-radius: 12px;
 }
