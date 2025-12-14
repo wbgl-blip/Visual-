@@ -1,153 +1,83 @@
-import { useState } from "react";
-import "./App.css";
+import { useState, useEffect } from "react";
 
-const SEAT_COUNT = 8;
+const SUITS = ["♠", "♥", "♦", "♣"]; const VALUES = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
-/* Build a 52-card deck */
-const buildDeck = () => {
-  const values = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-  const suits = ["♠","♥","♦","♣"];
-  const deck = [];
+function buildDeck() { const deck = []; for (const suit of SUITS) { for (const value of VALUES) { deck.push({ suit, value }); } } return deck; }
 
-  suits.forEach(suit => {
-    values.forEach(value => {
-      deck.push({ value, suit });
-    });
-  });
+export default function App() { const [players, setPlayers] = useState([]); const [name, setName] = useState(""); const [deck, setDeck] = useState([]); const [turn, setTurn] = useState(0); const [started, setStarted] = useState(false);
 
-  return deck;
-};
+const [thumbMaster, setThumbMaster] = useState(null); const [questionMaster, setQuestionMaster] = useState(null); const [pointer, setPointer] = useState(null); const [kings, setKings] = useState(0);
 
-/* Rules tied to card values */
-const cardRules = {
-  A: "Waterfall — everyone drinks",
-  2: "You — pick someone to drink",
-  3: "Me — you drink",
-  4: "Whores — we all drink",
-  5: "Guys drink",
-  6: "Dicks — we all drink",
-  7: "Heaven — last to raise hand drinks",
-  8: "Mate — pick a drinking buddy",
-  9: "Rhyme — loser drinks",
-  10: "Categories — loser drinks",
-  J: "Thumb Master",
-  Q: "Question Master",
-  K: "Make a rule"
-};
+useEffect(() => { setDeck(shuffle(buildDeck())); }, []);
 
-export default function App() {
-  const [players, setPlayers] = useState(Array(SEAT_COUNT).fill(null));
-  const [nameInput, setNameInput] = useState("");
-  const [currentTurn, setCurrentTurn] = useState(0);
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
-  const [deck, setDeck] = useState(buildDeck());
-  const [currentCard, setCurrentCard] = useState(null);
-  const [gameStarted, setGameStarted] = useState(false);
+function addPlayer() { if (!name || players.length >= 8) return; setPlayers([...players, { name }]); setName(""); }
 
-  const [thumbMaster, setThumbMaster] = useState(null);
-  const [questionMaster, setQuestionMaster] = useState(null);
-  const [pointer, setPointer] = useState(null);
-  const [kings, setKings] = useState(0);
+function startGame() { if (players.length < 2) return; setStarted(true); }
 
-  /* Add player to first empty seat */
-  const addPlayer = () => {
-    if (!nameInput.trim()) return;
+function drawCard() { if (deck.length === 0) return;
 
-    const index = players.findIndex(p => p === null);
-    if (index === -1) return;
+const card = deck[0];
+const remaining = deck.slice(1);
+setDeck(remaining);
 
-    const updated = [...players];
-    updated[index] = nameInput.trim();
-    setPlayers(updated);
-    setNameInput("");
-  };
+const currentPlayer = players[turn];
 
-  /* Start game: remove empty seats */
-  const startGameIfNeeded = () => {
-    if (gameStarted) return;
+if (card.value === "7") setThumbMaster(currentPlayer.name);
+if (card.value === "J") setQuestionMaster(currentPlayer.name);
+if (card.value === "Q") setPointer(currentPlayer.name);
+if (card.value === "K") setKings(kings + 1);
 
-    const activePlayers = players.filter(Boolean);
-    setPlayers(activePlayers);
-    setCurrentTurn(0);
-    setGameStarted(true);
-  };
+setTurn((turn + 1) % players.length);
 
-  /* Draw card */
-  const drawCard = () => {
-    if (deck.length === 0) return;
+alert(`${currentPlayer.name} drew ${card.value}${card.suit}`);
 
-    startGameIfNeeded();
+}
 
-    const nextDeck = [...deck];
-    const card = nextDeck.pop();
+return ( <div style={styles.app}> <h1>KAD Kings</h1>
 
-    setDeck(nextDeck);
-    setCurrentCard(card);
+{!started && (
+    <div style={styles.addRow}>
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="Add player"
+      />
+      <button onClick={addPlayer}>Add</button>
+      <button onClick={startGame}>Start</button>
+    </div>
+  )}
 
-    const currentPlayer = players[currentTurn];
-
-    if (card.value === "7") setPointer(currentPlayer);
-    if (card.value === "J") setThumbMaster(currentPlayer);
-    if (card.value === "Q") setQuestionMaster(currentPlayer);
-    if (card.value === "K") setKings(k => Math.min(4, k + 1));
-
-    setCurrentTurn((currentTurn + 1) % players.length);
-  };
-
-  return (
-    <div className="app">
-      <h1>KAD Kings</h1>
-
-      {/* Add Player */}
-      {!gameStarted && (
-        <div className="add-player">
-          <input
-            placeholder="Add player"
-            value={nameInput}
-            onChange={e => setNameInput(e.target.value)}
-          />
-          <button onClick={addPlayer}>Add</button>
-        </div>
-      )}
-
-      {/* Seats */}
-      <div className="seats-grid">
-        {players.map((player, i) => (
-          <div
-            key={i}
-            className={`seat ${i === currentTurn && gameStarted ? "active-seat" : ""}`}
-          >
-            <div className="seat-number">Seat {i + 1}</div>
-            <div className="seat-name">{player || "Empty"}</div>
-          </div>
-        ))}
+  <div style={styles.grid}>
+    {players.map((p, i) => (
+      <div
+        key={i}
+        style={{
+          ...styles.card,
+          border: i === turn ? "3px solid #4ade80" : "1px solid #ddd"
+        }}
+      >
+        {p.name}
       </div>
+    ))}
+  </div>
 
-      {/* Status */}
-      <div className="status">
-        ✋ Thumb Master: {thumbMaster || "None"}<br />
-        🧠 Question Master: {questionMaster || "None"}<br />
-        👉 Pointer: {pointer || "None"}<br />
-        👑 Kings: {kings} / 4<br />
-        🃏 Cards left: {deck.length} / 52
-      </div>
+  {started && (
+    <>
+      <p>Cards left: {deck.length}</p>
+      <p>👆 Thumb Master: {thumbMaster || "None"}</p>
+      <p>🧠 Question Master: {questionMaster || "None"}</p>
+      <p>👉 Pointer: {pointer || "None"}</p>
+      <p>👑 Kings: {kings} / 4</p>
 
-      {/* Draw */}
-      <button className="draw-btn" onClick={drawCard}>
+      <button onClick={drawCard} disabled={deck.length === 0}>
         Draw Card
       </button>
+    </>
+  )}
+</div>
 
-      {/* Card */}
-      {currentCard && (
-        <div className="card">
-          <div className="card-value">
-            {currentCard.value}{currentCard.suit}
-          </div>
-          <div className="card-text">
-            {cardRules[currentCard.value]}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+); }
+
+const styles = { app: { fontFamily: "sans-serif", padding: 20, textAlign: "center" }, addRow: { display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }, grid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }, card: { padding: 16, borderRadius: 12, background: "#f9fafb", fontWeight: "bold" } };
