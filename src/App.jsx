@@ -1,66 +1,58 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 
-/* =========================
-   MEDALS (HALO-STYLE)
-========================= */
+/* ======================
+   CONFIG
+====================== */
+const MAX_PLAYERS = 8;
+
+/* ======================
+   MEDALS
+====================== */
 const MEDALS = {
   DEGENERATE: {
     id: "degenerate",
     icon: "🥴",
-    name: "Degenerate",
-    text: "Statistically impressive. Morally concerning."
-  },
-  SPONGE: {
-    id: "sponge",
-    icon: "🍺",
-    name: "Human Sponge",
-    text: "Your liver filed a formal complaint."
+    normal: "Poor choices were made.",
+    toxic: "You are a walking cautionary tale."
   },
   KING: {
     id: "king",
     icon: "👑",
-    name: "Kingmaker",
-    text: "Absolute power. Immediate corruption."
+    normal: "Rule maker.",
+    toxic: "Power corrupted you immediately."
   },
   THUMB: {
     id: "thumb",
     icon: "👆",
-    name: "Thumb Tyrant",
-    text: "Hands up. You work for them now."
+    normal: "Thumb Master.",
+    toxic: "Everyone answers to your hand now."
   },
   QUESTION: {
     id: "question",
     icon: "❓",
-    name: "Interrogator",
-    text: "Every sentence is a trap."
+    normal: "Question Master.",
+    toxic: "Every word out of your mouth is a trap."
   },
-  TRAINWRECK: {
-    id: "trainwreck",
-    icon: "💀",
-    name: "Trainwreck",
-    text: "We watched it happen. Nobody stopped it."
+  SPONGE: {
+    id: "sponge",
+    icon: "🍺",
+    normal: "Most drinks taken.",
+    toxic: "Your liver wants a lawyer."
   }
 };
 
-/* =========================
-   CARD SETUP (52 CARDS)
-========================= */
+/* ======================
+   CARDS
+====================== */
 const suits = ["♠", "♥", "♦", "♣"];
 const ranks = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
 function buildDeck() {
-  const deck = [];
-  suits.forEach(suit => {
-    ranks.forEach(rank => {
-      deck.push({ suit, rank });
-    });
-  });
-  return deck;
+  return suits.flatMap(s => ranks.map(r => ({ suit: s, rank: r })));
 }
-
-function shuffle(array) {
-  return [...array].sort(() => Math.random() - 0.5);
+function shuffle(deck) {
+  return [...deck].sort(() => Math.random() - 0.5);
 }
 
 export default function App() {
@@ -70,16 +62,17 @@ export default function App() {
   const [discard, setDiscard] = useState([]);
   const [turn, setTurn] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [toxicMode, setToxicMode] = useState(false);
 
-  /* =========================
-     PLAYER LOGIC
-  ========================= */
+  const [medalPopup, setMedalPopup] = useState(null);
+  const [announcerText, setAnnouncerText] = useState("");
+
+  /* ======================
+     PLAYER / LOBBY
+  ====================== */
   function addPlayer() {
-    if (!nameInput.trim()) return;
-    setPlayers([
-      ...players,
-      { name: nameInput, drinks: 0, medals: [] }
-    ]);
+    if (!nameInput.trim() || players.length >= MAX_PLAYERS) return;
+    setPlayers([...players, { name: nameInput, drinks: 0, medals: [] }]);
     setNameInput("");
   }
 
@@ -89,23 +82,35 @@ export default function App() {
     setDiscard([]);
     setTurn(0);
     setGameOver(false);
+    setAnnouncerText("Game on.");
   }
 
+  /* ======================
+     MEDAL HANDLING
+  ====================== */
   function awardMedal(playerIndex, medal) {
     setPlayers(prev =>
-      prev.map((p, i) =>
-        i === playerIndex && !p.medals.find(m => m.id === medal.id)
-          ? { ...p, medals: [...p.medals, medal] }
-          : p
-      )
+      prev.map((p, i) => {
+        if (i !== playerIndex) return p;
+        if (p.medals.find(m => m.id === medal.id)) return p;
+        return { ...p, medals: [...p.medals, medal] };
+      })
     );
+
+    setMedalPopup({
+      player: players[playerIndex]?.name,
+      icon: medal.icon,
+      text: toxicMode ? medal.toxic : medal.normal
+    });
+
+    setTimeout(() => setMedalPopup(null), 2500);
   }
 
-  /* =========================
+  /* ======================
      GAMEPLAY
-  ========================= */
+  ====================== */
   function drawCard() {
-    if (deck.length === 0) return;
+    if (!deck.length) return;
 
     const nextDeck = [...deck];
     const card = nextDeck.pop();
@@ -113,16 +118,9 @@ export default function App() {
     const nextPlayers = [...players];
     nextPlayers[turn].drinks += 1;
 
-    /* ---- DRINK BASED MEDALS ---- */
-    if (nextPlayers[turn].drinks === 5) {
+    if (nextPlayers[turn].drinks === 5)
       awardMedal(turn, MEDALS.DEGENERATE);
-    }
 
-    if (nextPlayers[turn].drinks === 8) {
-      awardMedal(turn, MEDALS.TRAINWRECK);
-    }
-
-    /* ---- CARD BASED MEDALS ---- */
     if (card.rank === "K") awardMedal(turn, MEDALS.KING);
     if (card.rank === "J") awardMedal(turn, MEDALS.THUMB);
     if (card.rank === "Q") awardMedal(turn, MEDALS.QUESTION);
@@ -132,24 +130,34 @@ export default function App() {
     setDiscard([...discard, card]);
 
     if (nextDeck.length === 0) {
-      const maxDrinks = Math.max(...nextPlayers.map(p => p.drinks));
+      const max = Math.max(...nextPlayers.map(p => p.drinks));
       nextPlayers.forEach((p, i) => {
-        if (p.drinks === maxDrinks) {
-          awardMedal(i, MEDALS.SPONGE);
-        }
+        if (p.drinks === max) awardMedal(i, MEDALS.SPONGE);
       });
       setGameOver(true);
+      setAnnouncerText("Game over.");
     } else {
       setTurn((turn + 1) % players.length);
     }
   }
 
-  /* =========================
+  /* ======================
      UI
-  ========================= */
+  ====================== */
   return (
     <div className="app">
       <h1>KAD Kings</h1>
+
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={toxicMode}
+          onChange={() => setToxicMode(!toxicMode)}
+        />
+        Toxic Mode
+      </label>
+
+      {announcerText && <div className="announcer">{announcerText}</div>}
 
       {/* SETUP */}
       {deck.length === 0 && !gameOver && (
@@ -161,11 +169,14 @@ export default function App() {
           />
           <button onClick={addPlayer}>Add Player</button>
 
-          <ul>
+          <div className="seats">
             {players.map((p, i) => (
-              <li key={i}>{p.name}</li>
+              <div key={i} className="seat filled">{p.name}</div>
             ))}
-          </ul>
+            {Array.from({ length: MAX_PLAYERS - players.length }).map((_, i) => (
+              <div key={i} className="seat">Empty</div>
+            ))}
+          </div>
 
           <button className="start" onClick={startGame}>
             Start Game
@@ -176,34 +187,22 @@ export default function App() {
       {/* GAME */}
       {deck.length > 0 && !gameOver && (
         <>
-          <h2>
-            Turn: <span className="active">{players[turn].name}</span>
-          </h2>
-
-          <button className="draw" onClick={drawCard}>
-            Draw Card
-          </button>
-
+          <h2>Turn: <span className="active">{players[turn].name}</span></h2>
+          <button className="draw" onClick={drawCard}>Draw Card</button>
           <p>Cards left: {deck.length}</p>
 
           {discard.length > 0 && (
             <div className="card">
-              {discard[discard.length - 1].rank}
-              {discard[discard.length - 1].suit}
+              {discard.at(-1).rank}{discard.at(-1).suit}
             </div>
           )}
 
-          <h3>Scores</h3>
           <ul>
             {players.map((p, i) => (
               <li key={i} className={i === turn ? "active" : ""}>
-                {p.name}: {p.drinks} drinks
+                {p.name} – {p.drinks}
                 <div className="medals">
-                  {p.medals.map(m => (
-                    <span key={m.id} title={m.text}>
-                      {m.icon}
-                    </span>
-                  ))}
+                  {p.medals.map(m => <span key={m.id}>{m.icon}</span>)}
                 </div>
               </li>
             ))}
@@ -214,24 +213,26 @@ export default function App() {
       {/* GAME OVER */}
       {gameOver && (
         <div className="game-over">
-          <h2>Game Over</h2>
-          <h3>Leaderboard</h3>
+          <h2>Final Standings</h2>
           <ol>
             {[...players]
-              .sort((a, b) => b.drinks - a.drinks)
-              .map((p, i) => (
+              .sort((a,b) => b.drinks - a.drinks)
+              .map((p,i) => (
                 <li key={i}>
-                  {p.name} – {p.drinks} drinks
+                  {p.name} – {p.drinks}
                   <div className="medals">
-                    {p.medals.map(m => (
-                      <span key={m.id} title={m.text}>
-                        {m.icon}
-                      </span>
-                    ))}
+                    {p.medals.map(m => <span key={m.id}>{m.icon}</span>)}
                   </div>
                 </li>
               ))}
           </ol>
+        </div>
+      )}
+
+      {medalPopup && (
+        <div className="medal-popup">
+          <strong>{medalPopup.player}</strong> earned {medalPopup.icon}
+          <div>{medalPopup.text}</div>
         </div>
       )}
     </div>
