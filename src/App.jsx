@@ -39,6 +39,13 @@ export default function App() {
   const [turn, setTurn] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [flipped, setFlipped] = useState(false);
+
+  // Persistent roles
+  const [thumbMaster, setThumbMaster] = useState(null);
+  const [questionMaster, setQuestionMaster] = useState(null);
+  const [heavenMaster, setHeavenMaster] = useState(null);
+  const [ruleMaster, setRuleMaster] = useState(null);
+
   const [playerId] = useState(() => crypto.randomUUID());
 
   /* ================= ROOM ================= */
@@ -50,7 +57,11 @@ export default function App() {
       deck: [],
       discard: [],
       turn: 0,
-      gameOver: false
+      gameOver: false,
+      thumbMaster: null,
+      questionMaster: null,
+      heavenMaster: null,
+      ruleMaster: null
     });
     setRoomCode(code);
   }
@@ -66,10 +77,7 @@ export default function App() {
     if (data.players.some(p => p.id === playerId)) return;
 
     await updateDoc(ref, {
-      players: [
-        ...data.players,
-        { id: playerId, name, drinks: 0 }
-      ]
+      players: [...data.players, { id: playerId, name, drinks: 0 }]
     });
   }
 
@@ -85,6 +93,10 @@ export default function App() {
       setDiscard(d.discard);
       setTurn(d.turn);
       setGameOver(d.gameOver);
+      setThumbMaster(d.thumbMaster);
+      setQuestionMaster(d.questionMaster);
+      setHeavenMaster(d.heavenMaster);
+      setRuleMaster(d.ruleMaster);
     });
   }, [roomCode]);
 
@@ -97,7 +109,11 @@ export default function App() {
       deck: shuffle(buildDeck()),
       discard: [],
       turn: 0,
-      gameOver: false
+      gameOver: false,
+      thumbMaster: null,
+      questionMaster: null,
+      heavenMaster: null,
+      ruleMaster: null
     });
   }
 
@@ -112,6 +128,13 @@ export default function App() {
     const nextPlayers = [...players];
     nextPlayers[turn].drinks += 1;
 
+    const updates = {};
+
+    if (card.rank === "J") updates.thumbMaster = nextPlayers[turn].id;
+    if (card.rank === "Q") updates.questionMaster = nextPlayers[turn].id;
+    if (card.rank === "7") updates.heavenMaster = nextPlayers[turn].id;
+    if (card.rank === "K") updates.ruleMaster = nextPlayers[turn].id;
+
     setTimeout(async () => {
       setFlipped(true);
       await updateDoc(doc(db, "rooms", roomCode), {
@@ -119,7 +142,8 @@ export default function App() {
         discard: [...discard, card],
         players: nextPlayers,
         turn: nextDeck.length ? (turn + 1) % players.length : turn,
-        gameOver: nextDeck.length === 0
+        gameOver: nextDeck.length === 0,
+        ...updates
       });
     }, 200);
   }
@@ -134,15 +158,8 @@ export default function App() {
       {!roomCode && (
         <>
           <button onClick={createRoom}>Create Room</button>
-          <input
-            placeholder="ROOM CODE"
-            onChange={e=>setRoomCode(e.target.value.toUpperCase())}
-          />
-          <input
-            placeholder="Your name"
-            value={name}
-            onChange={e=>setName(e.target.value)}
-          />
+          <input placeholder="ROOM CODE" onChange={e=>setRoomCode(e.target.value.toUpperCase())}/>
+          <input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)}/>
           <button onClick={joinRoom}>Join</button>
         </>
       )}
@@ -152,29 +169,22 @@ export default function App() {
           <h2>Room: {roomCode}</h2>
           <ul>
             {players.map((p, i)=>(
-              <li
-                key={p.id}
-                className={i === turn ? "active-player" : ""}
-              >
+              <li key={p.id} className={i === turn ? "active-player" : ""}>
                 {p.name}
+                {p.id === thumbMaster && " 🖐"}
+                {p.id === questionMaster && " ❓"}
+                {p.id === heavenMaster && " ☁️"}
+                {p.id === ruleMaster && " 👑"}
               </li>
             ))}
           </ul>
-
-          {room?.hostId===playerId && (
-            <button onClick={startGame}>Start Game</button>
-          )}
+          {room?.hostId===playerId && <button onClick={startGame}>Start Game</button>}
         </>
       )}
 
       {deck.length>0 && !gameOver && (
         <>
-          <h2>
-            Turn: <span className="active-player">
-              {players[turn]?.name}
-            </span>
-          </h2>
-
+          <h2>Turn: <span className="active-player">{players[turn]?.name}</span></h2>
           <button onClick={drawCard}>Draw Card</button>
 
           <p className="rule-text">
