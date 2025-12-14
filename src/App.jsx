@@ -1,173 +1,230 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 
-/* ---------- CARD SETUP ---------- */
+/* -------------------- CARD + MEDAL DATA -------------------- */
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 
-function buildDeck() {
-  const deck = [];
-  for (let suit of SUITS) {
-    for (let rank of RANKS) {
-      deck.push({
-        rank,
-        suit,
-        rule: getRule(rank)
-      });
+const RULES_BY_RANK = {
+  A: "Waterfall – everyone drinks",
+  2: "You – pick someone to drink",
+  3: "Me – you drink",
+  4: "Whores – everyone drinks",
+  5: "Guys drink",
+  6: "Dicks – everyone drinks",
+  7: "Heaven – last to raise hand drinks",
+  8: "Mate – pick a drinking buddy",
+  9: "Rhyme – loser drinks",
+  10: "Categories – loser drinks",
+  J: "Thumb Master",
+  Q: "Question Master",
+  K: "Make a rule"
+};
+
+// Medals tied to specific cards (NOT every card)
+const MEDALS_BY_RANK = {
+  A: "Waterfall King",
+  K: "Rule Maker",
+  8: "Best Mate"
+};
+
+/* -------------------- ANNOUNCER VOICE -------------------- */
+
+function speak(text, mode) {
+  if (mode === "off") return;
+  if (!window.speechSynthesis) return;
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voices = window.speechSynthesis.getVoices();
+  utterance.voice = voices.find(v => v.lang.startsWith("en")) || voices[0];
+
+  if (mode === "arena") {
+    utterance.rate = 0.85;
+    utterance.pitch = 0.85;
+  }
+  if (mode === "action") {
+    utterance.rate = 0.95;
+    utterance.pitch = 0.7;
+  }
+  if (mode === "toxic") {
+    utterance.rate = 1;
+    utterance.pitch = 0.6;
+  }
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+function getToxicTier(drawCount, deckSize) {
+  const progress = drawCount / deckSize;
+  if (progress < 0.33) return "mild";
+  if (progress < 0.66) return "mean";
+  return "nuclear";
+}
+
+const MEDAL_LINES = {
+  "Waterfall King": {
+    toxic: {
+      mild: ["Waterfall King. Everyone drinks."],
+      mean: ["Waterfall King. This is your fault."],
+      nuclear: [
+        "Waterfall King. You ruined the night.",
+        "Congratulations. Everyone hates you."
+      ]
+    }
+  },
+  "Rule Maker": {
+    toxic: {
+      mild: ["Rule Maker. Choose wisely."],
+      mean: ["Rule Maker. This will go badly."],
+      nuclear: [
+        "Rule Maker. Make it hurt.",
+        "Rule Maker. Be cruel."
+      ]
+    }
+  },
+  "Best Mate": {
+    toxic: {
+      mild: ["Best Mate locked in."],
+      mean: ["Best Mate. Misery loves company."],
+      nuclear: [
+        "Best Mate. Drag them down with you."
+      ]
     }
   }
-  return shuffle(deck);
-}
+};
 
-function shuffle(deck) {
-  return [...deck].sort(() => Math.random() - 0.5);
-}
-
-function getRule(rank) {
-  switch (rank) {
-    case "A": return "Waterfall – everyone drinks";
-    case "2": return "You – pick someone to drink";
-    case "3": return "Me – you drink";
-    case "4": return "Whores – we all drink";
-    case "5": return "Guys drink";
-    case "6": return "Dicks – we all drink";
-    case "7": return "Pointer";
-    case "8": return "Mate – pick a buddy";
-    case "9": return "Rhyme";
-    case "10": return "Categories";
-    case "J": return "Thumb Master";
-    case "Q": return "Question Master";
-    case "K": return "Make a rule";
-    default: return "";
-  }
-}
-
-/* ---------- APP ---------- */
+/* -------------------- APP -------------------- */
 
 export default function App() {
-  const [players, setPlayers] = useState([]);
-  const [nameInput, setNameInput] = useState("");
+  const [players, setPlayers] = useState([
+    "Seat 1",
+    "Seat 2",
+    "Seat 3",
+    "Seat 4"
+  ]);
+
+  const [currentPlayer, setCurrentPlayer] = useState(0);
   const [deck, setDeck] = useState([]);
-  const [currentTurn, setCurrentTurn] = useState(0);
-  const [started, setStarted] = useState(false);
+  const [currentCard, setCurrentCard] = useState(null);
+  const [medals, setMedals] = useState({});
+  const [announcerMode, setAnnouncerMode] = useState("toxic");
+  const [drawCount, setDrawCount] = useState(0);
 
-  const [lastCard, setLastCard] = useState(null);
-
-  const [thumbMaster, setThumbMaster] = useState(null);
-  const [questionMaster, setQuestionMaster] = useState(null);
-  const [pointer, setPointer] = useState(null);
-
-  /* ---------- GAME START ---------- */
-
-  const startGame = () => {
-    if (players.length < 2) return;
-    setDeck(buildDeck());
-    setStarted(true);
-  };
-
-  /* ---------- PLAYER MGMT ---------- */
-
-  const addPlayer = () => {
-    if (!nameInput.trim()) return;
-    if (players.length >= 8) return;
-
-    setPlayers([...players, nameInput.trim()]);
-    setNameInput("");
-  };
-
-  /* ---------- DRAW CARD ---------- */
-
-  const drawCard = () => {
-    if (!deck.length) return;
-
-    const card = deck[0];
-    const remaining = deck.slice(1);
-
-    const player = players[currentTurn];
-
-    setDeck(remaining);
-    setLastCard({
-      player,
-      card: `${card.rank}${card.suit}`,
-      rule: card.rule
+  /* Build deck on load */
+  useEffect(() => {
+    const newDeck = [];
+    SUITS.forEach(suit => {
+      RANKS.forEach(rank => {
+        newDeck.push({ suit, rank });
+      });
     });
+    setDeck(shuffle(newDeck));
+  }, []);
 
-    // Role logic (overwrites previous holder)
-    if (card.rank === "7") setPointer(player);
-    if (card.rank === "J") setThumbMaster(player);
-    if (card.rank === "Q") setQuestionMaster(player);
+  function shuffle(array) {
+    return [...array].sort(() => Math.random() - 0.5);
+  }
 
-    setCurrentTurn((currentTurn + 1) % players.length);
-  };
+  function drawCard() {
+    if (deck.length === 0) return;
 
-  /* ---------- UI ---------- */
+    const nextDeck = [...deck];
+    const card = nextDeck.pop();
+    setDeck(nextDeck);
+    setCurrentCard(card);
+    setDrawCount(c => c + 1);
+
+    const playerName = players[currentPlayer];
+    const medalName = MEDALS_BY_RANK[card.rank];
+
+    // Award permanent medal
+    if (medalName) {
+      setMedals(prev => {
+        const owned = prev[playerName] || [];
+        if (owned.includes(medalName)) return prev;
+
+        const updated = {
+          ...prev,
+          [playerName]: [...owned, medalName]
+        };
+
+        if (announcerMode === "toxic") {
+          const tier = getToxicTier(drawCount, 52);
+          const lines = MEDAL_LINES[medalName]?.toxic?.[tier];
+          if (lines?.length) {
+            speak(
+              `${playerName}. ${lines[Math.floor(Math.random() * lines.length)]}`,
+              announcerMode
+            );
+          }
+        }
+
+        return updated;
+      });
+    }
+
+    setCurrentPlayer((currentPlayer + 1) % players.length);
+  }
 
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      {!started && (
-        <>
-          <div className="add-player">
-            <input
-              value={nameInput}
-              onChange={e => setNameInput(e.target.value)}
-              placeholder="Add player"
-            />
-            <button onClick={addPlayer}>Add</button>
-          </div>
+      <div className="announcer-toggle">
+        <label>Announcer</label>
+        <select
+          value={announcerMode}
+          onChange={e => setAnnouncerMode(e.target.value)}
+        >
+          <option value="arena">Arena</option>
+          <option value="action">Action</option>
+          <option value="toxic">Toxic</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
 
-          <div className="seats">
-            {players.map((p, i) => (
-              <div key={i} className="seat">{p}</div>
-            ))}
+      <div className="seats">
+        {players.map((p, i) => (
+          <div
+            key={i}
+            className={`seat ${i === currentPlayer ? "active" : ""}`}
+          >
+            {p}
           </div>
+        ))}
+      </div>
 
-          <button onClick={startGame} disabled={players.length < 2}>
-            Start Game
-          </button>
-        </>
+      <button onClick={drawCard} disabled={deck.length === 0}>
+        Draw Card ({deck.length} left)
+      </button>
+
+      {currentCard && (
+        <div className="card">
+          <div className="card-value">
+            {currentCard.rank}
+            {currentCard.suit}
+          </div>
+          <div className="card-text">
+            {RULES_BY_RANK[currentCard.rank]}
+          </div>
+        </div>
       )}
 
-      {started && (
-        <>
-          <div className="seats">
-            {players.map((p, i) => (
-              <div
-                key={i}
-                className={`seat ${i === currentTurn ? "active" : ""}`}
-              >
-                {p}
-              </div>
-            ))}
+      <div className="medals">
+        <h3>Medals</h3>
+        {Object.entries(medals).map(([player, list]) => (
+          <div key={player}>
+            <strong>{player}</strong>
+            <ul>
+              {list.map(m => (
+                <li key={m}>🏅 {m}</li>
+              ))}
+            </ul>
           </div>
-
-          <p className="counter">Cards left: {deck.length}</p>
-
-          <div className="roles">
-            👆 Thumb Master: {thumbMaster || "None"}<br />
-            🧠 Question Master: {questionMaster || "None"}<br />
-            👉 Pointer: {pointer || "None"}
-          </div>
-
-          <button onClick={drawCard} disabled={!deck.length}>
-            Draw Card
-          </button>
-
-          {lastCard && (
-            <div className="card-display">
-              <div className="card-rank">{lastCard.card}</div>
-              <div className="card-player">
-                {lastCard.player} drew
-              </div>
-              <div className="card-rule">
-                {lastCard.rule}
-              </div>
-            </div>
-          )}
-        </>
-      )}
+        ))}
+      </div>
     </div>
   );
 }
