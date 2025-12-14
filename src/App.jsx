@@ -4,45 +4,71 @@ import { db } from "./firebase";
 
 export default function App() {
   const [players, setPlayers] = useState({});
-  const [gameStarted, setGameStarted] = useState(false);
+  const [status, setStatus] = useState("loading");
 
   useEffect(() => {
-    const playersRef = ref(db, "players");
+    const gameRef = ref(db, "game");
 
-    const unsubscribe = onValue(playersRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setPlayers(snapshot.val());
+    const unsubscribe = onValue(gameRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setPlayers(data.players || {});
+        setStatus("connected");
+      } else {
+        setStatus("no game data");
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  const addDrink = (playerId) => {
-    const playerRef = ref(db, `players/${playerId}`);
-    update(playerRef, {
-      drinks: (players[playerId]?.drinks || 0) + 1,
+  const addPlayer = () => {
+    const id = `player_${Date.now()}`;
+    update(ref(db, "game/players"), {
+      [id]: {
+        name: "New Player",
+        drinks: 0,
+      },
     });
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>🍻 Multiplayer Drinking Game</h1>
+    <div style={styles.app}>
+      <h1>Card Drinking Game</h1>
 
-      {!gameStarted && (
-        <button onClick={() => setGameStarted(true)}>
-          Start Game
-        </button>
-      )}
+      <p>Status: {status}</p>
 
-      {gameStarted &&
-        Object.entries(players).map(([id, player]) => (
-          <div key={id} style={{ marginTop: 10 }}>
+      <button onClick={addPlayer}>Add Player</button>
+
+      <div style={styles.players}>
+        {Object.entries(players).map(([id, player]) => (
+          <div key={id} style={styles.card}>
             <strong>{player.name}</strong>
-            <div>Drinks: {player.drinks || 0}</div>
-            <button onClick={() => addDrink(id)}>+ Drink</button>
+            <div>Drinks: {player.drinks}</div>
           </div>
         ))}
+      </div>
     </div>
   );
 }
+
+const styles = {
+  app: {
+    fontFamily: "sans-serif",
+    padding: 20,
+    textAlign: "center",
+  },
+  players: {
+    display: "flex",
+    gap: 12,
+    justifyContent: "center",
+    marginTop: 20,
+    flexWrap: "wrap",
+  },
+  card: {
+    border: "1px solid #444",
+    borderRadius: 8,
+    padding: 12,
+    width: 140,
+  },
+};
