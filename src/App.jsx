@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import "./App.css";
 
 /* ------------------ DECK ------------------ */
@@ -20,6 +20,13 @@ const RULES = {
   J: "Thumb Master",
   Q: "Question Master",
   K: "Make a rule"
+};
+
+const MEDALS = {
+  A: "Hydration Hero 💧",
+  7: "Sky Lord ☁️",
+  J: "Sticky Fingers 🖐️",
+  Q: "Interrogator ❓"
 };
 
 function buildDeck() {
@@ -65,7 +72,7 @@ export default function App() {
   const [question, setQuestion] = useState(null);
   const [heaven, setHeaven] = useState(null);
 
-  /* -------- SETUP -------- */
+  /* ---------- SETUP ---------- */
 
   function updateName(i, value) {
     setPlayers(p =>
@@ -83,7 +90,7 @@ export default function App() {
     setSetup(false);
   }
 
-  /* -------- GAME LOOP -------- */
+  /* ---------- GAME ---------- */
 
   function drawCard() {
     if (!deck.length) return;
@@ -95,16 +102,36 @@ export default function App() {
     const rule = RULES[next.rank];
     speak(rule);
 
-    const name = players[active].name;
+    const playerName = players[active].name;
 
-    if (next.rank === "J") setThumb(name);
-    if (next.rank === "Q") setQuestion(name);
-    if (next.rank === "7") setHeaven(name);
+    if (next.rank === "J") setThumb(playerName);
+    if (next.rank === "Q") setQuestion(playerName);
+    if (next.rank === "7") setHeaven(playerName);
+
+    const medal = MEDALS[next.rank];
+    if (medal) {
+      setPlayers(p =>
+        p.map((pl, i) =>
+          i === active && !pl.medals.includes(medal)
+            ? { ...pl, medals: [...pl.medals, medal] }
+            : pl
+        )
+      );
+      speak(medal);
+    }
 
     setActive((active + 1) % players.length);
   }
 
-  /* -------- UI -------- */
+  function addDrink(i) {
+    setPlayers(p =>
+      p.map((pl, idx) =>
+        idx === i ? { ...pl, drinks: pl.drinks + 1 } : pl
+      )
+    );
+  }
+
+  /* ---------- UI ---------- */
 
   if (setup) {
     return (
@@ -131,7 +158,7 @@ export default function App() {
       <h1>KAD Kings</h1>
 
       <div className="status">
-        <span>🂠 {deck.length} cards left</span>
+        <span>🂠 {deck.length}</span>
         <span>👑 {thumb || "—"}</span>
         <span>❓ {question || "—"}</span>
         <span>☁️ {heaven || "—"}</span>
@@ -155,7 +182,15 @@ export default function App() {
             key={i}
             className={`player ${i === active ? "active" : ""}`}
           >
-            {p.name}
+            <strong>{p.name}</strong>
+            <div>🍺 {p.drinks}</div>
+            <button onClick={() => addDrink(i)}>+1</button>
+
+            <div className="medals">
+              {p.medals.map(m => (
+                <span key={m} className="medal">{m}</span>
+              ))}
+            </div>
           </div>
         ))}
       </div>
