@@ -27,16 +27,18 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <h1>KAD Kings</h1>
+  <div className="app">
+    <h1>KAD Kings</h1>
 
-      <button onClick={drawCard}>
-        Draw Card
-      </button>
+    <button onClick={drawCard}>
+      Draw Card
+    </button>
 
-      {current && (
-  <div className="card">
-    <div className="card-value">{current.card}</div>
-    <div className="card-text">{current.text}</div>
+    {current && (
+      <div className="card">
+        <div className="card-value">{current.card}</div>
+        <div className="card-text">{current.text}</div>
+      </div>
+    )}
   </div>
-)}
+);
