@@ -1,92 +1,68 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import "./App.css";
 
-// Firebase
-import { ref, onValue, update } from "firebase/database";
-import { db } from "./firebase";
-
 export default function App() {
-  const [players, setPlayers] = useState({});
+  const [players, setPlayers] = useState([]);
   const [name, setName] = useState("");
-  const [gameId] = useState("default-room");
-  const [currentTurn, setCurrentTurn] = useState(null);
+  const [card, setCard] = useState(null);
 
-  // 🔥 Firebase listener
-  useEffect(() => {
-    const gameRef = ref(db, `games/${gameId}`);
+  // Simple deck
+  const deck = [
+    "A♠", "K♠", "Q♠", "J♠",
+    "10♠", "9♠", "8♠",
+    "A♥", "K♥", "Q♥", "J♥",
+    "10♥", "9♥", "8♥",
+    "A♦", "K♦", "Q♦", "J♦",
+    "A♣", "K♣", "Q♣", "J♣"
+  ];
 
-    const unsubscribe = onValue(gameRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      setPlayers(data.players || {});
-      setCurrentTurn(data.currentTurn || null);
-    });
-
-    return () => unsubscribe();
-  }, [gameId]);
-
-  // ➕ Add player
+  // Add player (LOCAL – guaranteed to work)
   const addPlayer = () => {
     if (!name.trim()) return;
 
-    const id = Date.now().toString();
-    const updates = {};
-    updates[`games/${gameId}/players/${id}`] = {
-      name,
-      drinks: 0,
-    };
-
-    update(ref(db), updates);
+    setPlayers([...players, { name, drinks: 0 }]);
     setName("");
   };
 
-  // 🔄 Next turn
-  const nextTurn = () => {
-    const ids = Object.keys(players);
-    if (ids.length === 0) return;
-
-    let nextIndex = 0;
-    if (currentTurn) {
-      const currentIndex = ids.indexOf(currentTurn);
-      nextIndex = (currentIndex + 1) % ids.length;
-    }
-
-    update(ref(db, `games/${gameId}`), {
-      currentTurn: ids[nextIndex],
-    });
+  // Draw card
+  const drawCard = () => {
+    const random = deck[Math.floor(Math.random() * deck.length)];
+    setCard(random);
   };
 
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      {/* Add Player */}
-      <input
-        placeholder="Enter player name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <button onClick={addPlayer}>Join Game</button>
+      {/* ADD PLAYER */}
+      <div className="panel">
+        <input
+          placeholder="Enter player name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <button onClick={addPlayer}>Add Player</button>
+      </div>
 
-      {/* Players */}
-      <h2>Players</h2>
-      <div className="player-list">
-        {Object.entries(players).map(([id, player]) => (
-          <div
-            key={id}
-            className={`player ${currentTurn === id ? "active" : ""}`}
-          >
-            <span>{player.name}</span>
-            <span>🍺 {player.drinks}</span>
+      {/* PLAYER LIST */}
+      <div className="panel">
+        <h2>Players</h2>
+        {players.length === 0 && <p>No players yet</p>}
+        {players.map((p, i) => (
+          <div key={i} className="player">
+            {p.name} 🍺 {p.drinks}
           </div>
         ))}
       </div>
 
-      {/* Turn control */}
-      <button className="secondary" onClick={nextTurn}>
-        Next Turn
-      </button>
-
-      <div className="footer">Firebase synced • Vercel ready</div>
+      {/* DECK */}
+      <div className="panel">
+        <h2>Deck</h2>
+        <div className="card" onClick={drawCard}>
+          {card || "🂠"}
+        </div>
+        <p>Tap the card</p>
+      </div>
     </div>
   );
 }
