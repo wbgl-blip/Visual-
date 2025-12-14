@@ -1,200 +1,159 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
-/* ---------------- DATA ---------------- */
+/* =========================
+   ANNOUNCER VOICE ENGINE
+   ========================= */
 
-const SUITS = ["♠", "♥", "♦", "♣"];
-const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+function speak(text, mode = "arena") {
+  if (!window.speechSynthesis) return;
 
-const RULES = {
-  A: "Waterfall – everyone drinks",
-  2: "You – pick someone",
-  3: "Me – you drink",
-  4: "Whores – everyone drinks",
-  5: "Guys drink",
-  6: "Dicks – everyone drinks",
-  7: "Heaven",
-  8: "Mate",
-  9: "Rhyme",
-  10: "Categories",
-  J: "Thumb Master",
-  Q: "Question Master",
-  K: "Make a rule"
-};
+  const synth = window.speechSynthesis;
+  const utter = new SpeechSynthesisUtterance(text);
+  const voices = synth.getVoices();
 
-const MEDALS = {
-  A: "Waterfall King",
-  K: "Rule Maker",
-  8: "Best Mate"
-};
+  // Prefer deep English voices if available
+  const preferred =
+    voices.find(v => v.lang === "en-US" && v.name.toLowerCase().includes("male")) ||
+    voices.find(v => v.lang.startsWith("en")) ||
+    voices[0];
 
-/* ---------------- VOICE ---------------- */
+  utter.voice = preferred;
 
-function speak(text, mode) {
-  if (mode === "off") return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = mode === "toxic" ? 1 : 0.9;
-  u.pitch = mode === "toxic" ? 0.6 : 0.85;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(u);
+  if (mode === "arena") {
+    utter.rate = 0.85;
+    utter.pitch = 0.8;
+    utter.volume = 1;
+  }
+
+  if (mode === "action") {
+    utter.rate = 0.95;
+    utter.pitch = 0.65;
+    utter.volume = 1;
+  }
+
+  if (mode === "toxic") {
+    utter.rate = 1.05;
+    utter.pitch = 0.55;
+    utter.volume = 1;
+  }
+
+  synth.cancel();
+  synth.speak(utter);
 }
 
-/* ---------------- APP ---------------- */
+/* =========================
+   GAME CONSTANTS
+   ========================= */
+
+const SEAT_COUNT = 8;
+
+const VALUES = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+const SUITS = ["♠","♥","♦","♣"];
+
+function buildDeck() {
+  const deck = [];
+  SUITS.forEach(s =>
+    VALUES.forEach(v => deck.push({ value: v, suit: s }))
+  );
+  return deck.sort(() => Math.random() - 0.5);
+}
+
+/* =========================
+   APP
+   ========================= */
 
 export default function App() {
-  const [players] = useState(
-    Array.from({ length: 8 }, (_, i) => `Seat ${i + 1}`)
-  );
-
-  const [deck, setDeck] = useState([]);
-  const [card, setCard] = useState(null);
-  const [turn, setTurn] = useState(0);
-  const [medals, setMedals] = useState({});
-  const [drinks, setDrinks] = useState({});
-  const [gameOver, setGameOver] = useState(false);
-
-  const [announcer, setAnnouncer] = useState("toxic");
-  const [nsfw, setNsfw] = useState(false);
-
+  const [deck, setDeck] = useState(buildDeck());
+  const [currentSeat, setCurrentSeat] = useState(0);
   const [thumbMaster, setThumbMaster] = useState(null);
   const [questionMaster, setQuestionMaster] = useState(null);
+  const [announcer, setAnnouncer] = useState("arena");
 
-  /* ---------- INIT ---------- */
+  const [seats, setSeats] = useState(
+    Array.from({ length: SEAT_COUNT }, (_, i) => ({
+      name: `Seat ${i + 1}`,
+      drinks: 0
+    }))
+  );
 
   useEffect(() => {
-    const d = [];
-    SUITS.forEach(s => RANKS.forEach(r => d.push({ s, r })));
-    setDeck(d.sort(() => Math.random() - 0.5));
-
-    const initialDrinks = {};
-    players.forEach(p => (initialDrinks[p] = 0));
-    setDrinks(initialDrinks);
+    window.speechSynthesis.getVoices();
   }, []);
 
-  /* ---------- DRAW ---------- */
+  function addDrink(index) {
+    const copy = [...seats];
+    copy[index].drinks += 1;
+    setSeats(copy);
+  }
 
   function drawCard() {
     if (!deck.length) return;
 
-    const next = [...deck];
-    const drawn = next.pop();
-    setDeck(next);
-    setCard(drawn);
+    const nextDeck = [...deck];
+    const card = nextDeck.pop();
+    setDeck(nextDeck);
 
-    const player = players[turn];
+    const seatName = seats[currentSeat].name;
 
-    // Roles
-    if (drawn.r === "J") {
-      setThumbMaster(turn);
-      speak(`${player} is Thumb Master`, announcer);
-    }
-    if (drawn.r === "Q") {
-      setQuestionMaster(turn);
-      speak(`${player} is Question Master`, announcer);
+    // Persistent roles
+    if (card.value === "7") {
+      setThumbMaster(currentSeat);
+      speak(`${seatName} is now Thumb Master.`, announcer);
     }
 
-    // Medals
-    const medal = MEDALS[drawn.r];
-    if (medal) {
-      setMedals(m => ({
-        ...m,
-        [player]: [...(m[player] || []), medal]
-      }));
-      speak(`${player} earned ${medal}`, announcer);
+    if (card.value === "J") {
+      setQuestionMaster(currentSeat);
+      speak(`${seatName} is Question Master.`, announcer);
     }
 
-    // End game
-    if (next.length === 0) {
-      endGame();
+    if (card.value === "K") {
+      speak(`${seatName}. Make a rule.`, announcer);
     }
 
-    setTurn((turn + 1) % players.length);
+    // Advance turn
+    setCurrentSeat((currentSeat + 1) % seats.length);
   }
-
-  /* ---------- DRINK TRACKING ---------- */
-
-  function addDrink(player, amount) {
-    setDrinks(d => ({
-      ...d,
-      [player]: d[player] + amount
-    }));
-  }
-
-  /* ---------- END GAME ---------- */
-
-  function endGame() {
-    setGameOver(true);
-
-    const sorted = Object.entries(drinks).sort((a,b)=>b[1]-a[1]);
-    const mvp = sorted[0];
-    const shame = sorted[sorted.length - 1];
-
-    speak(
-      nsfw
-        ? `${mvp[0]} drank the most. Absolute menace. ${shame[0]} was carried.`
-        : `${mvp[0]} drank the most. MVP.`,
-      announcer
-    );
-  }
-
-  /* ---------- UI ---------- */
 
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      <div className="controls">
-        <select value={announcer} onChange={e => setAnnouncer(e.target.value)}>
-          <option value="arena">Arena</option>
-          <option value="toxic">Toxic</option>
-          <option value="off">Off</option>
-        </select>
+      <div className="top-bar">
+        <span>🂠 {deck.length} cards left</span>
 
-        <label>
-          <input type="checkbox" checked={nsfw} onChange={e=>setNsfw(e.target.checked)} />
-          NSFW
-        </label>
+        <select
+          value={announcer}
+          onChange={e => setAnnouncer(e.target.value)}
+        >
+          <option value="arena">🎙 Arena</option>
+          <option value="action">💥 Action</option>
+          <option value="toxic">☠️ Toxic</option>
+          <option value="off">🔇 Off</option>
+        </select>
+      </div>
+
+      <div className="masters">
+        👇 Thumb: {thumbMaster !== null ? seats[thumbMaster].name : "None"} <br />
+        ❓ Question: {questionMaster !== null ? seats[questionMaster].name : "None"}
       </div>
 
       <div className="seats">
-        {players.map((p,i)=>(
-          <div key={p} className={`seat ${i===turn?"active":""}`}>
-            {p}
-            {thumbMaster===i && <div>👎 Thumb</div>}
-            {questionMaster===i && <div>❓ Question</div>}
-
-            <div className="drinks">
-              🍺 {drinks[p]}
-              <button onClick={()=>addDrink(p,1)}>+1</button>
-              <button onClick={()=>addDrink(p,5)}>+5</button>
-            </div>
+        {seats.map((s, i) => (
+          <div
+            key={i}
+            className={`seat ${i === currentSeat ? "active" : ""}`}
+          >
+            <span>{s.name}</span>
+            <span>🍺 {s.drinks}</span>
+            <button onClick={() => addDrink(i)}>+1</button>
           </div>
         ))}
       </div>
 
-      {!gameOver && (
-        <button onClick={drawCard}>
-          Draw Card ({deck.length})
-        </button>
-      )}
-
-      {card && !gameOver && (
-        <div className="card">
-          {card.r}{card.s}
-          <div>{RULES[card.r]}</div>
-        </div>
-      )}
-
-      {gameOver && (
-        <div className="scoreboard">
-          <h2>Final Scores</h2>
-          {Object.entries(drinks)
-            .sort((a,b)=>b[1]-a[1])
-            .map(([p,d])=>(
-              <div key={p}>{p}: {d} 🍺</div>
-            ))}
-        </div>
-      )}
+      <button className="draw-btn" onClick={drawCard}>
+        Draw Card
+      </button>
     </div>
   );
 }
