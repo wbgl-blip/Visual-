@@ -1,107 +1,47 @@
-* {
-  box-sizing: border-box;
-}
-
 body {
-  margin: 0;
-  background: #0f0f0f;
-  color: #fff;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0e0e0e;
+  color: white;
+  font-family: sans-serif;
 }
 
 .app {
-  min-height: 100vh;
+  max-width: 500px;
+  margin: auto;
   padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-h1 {
-  margin-bottom: 12px;
-  letter-spacing: 1px;
+  text-align: center;
 }
 
 input {
-  width: 220px;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  font-size: 1rem;
+  padding: 8px;
+  margin-right: 6px;
 }
 
 button {
-  background: #e10600;
-  color: #fff;
-  border: none;
-  padding: 12px 22px;
-  border-radius: 14px;
-  font-size: 1rem;
-  font-weight: 600;
+  padding: 8px 14px;
+  margin: 6px;
   cursor: pointer;
 }
 
-button:hover {
-  opacity: 0.9;
+.start {
+  background: green;
+  color: white;
 }
 
-.upload {
-  background: #222;
-  padding: 10px 16px;
-  border-radius: 12px;
-  cursor: pointer;
+.draw {
+  background: #444;
+  color: white;
 }
 
 .card {
-  width: 260px;
-  height: 340px;
-  background: #fff;
-  color: #000;
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+  font-size: 48px;
+  margin: 20px;
 }
 
-.rank {
-  font-size: 4rem;
-  font-weight: 800;
+.active {
+  color: #00ff99;
+  font-weight: bold;
 }
 
-.suit {
-  font-size: 2.5rem;
-}
-
-.rule {
-  margin-top: 14px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.players {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  width: 100%;
-  max-width: 600px;
-}
-
-.player {
-  background: #1b1b1b;
-  padding: 12px;
-  border-radius: 14px;
-  text-align: center;
-}
-
-.player.active {
-  outline: 3px solid #e10600;
-}
-
-.deck-count {
-  opacity: 0.7;
-  font-size: 0.9rem;
+.game-over {
+  margin-top: 30px;
 }
