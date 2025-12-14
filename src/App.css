@@ -1,3 +1,6 @@
+/* =====================
+   GLOBAL
+===================== */
 * {
   box-sizing: border-box;
 }
@@ -6,87 +9,138 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f2f2f2;
+  color: #111;
 }
 
+/* =====================
+   APP CONTAINER
+===================== */
 .app {
   min-height: 100vh;
+  padding: 24px 16px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 24px;
+  gap: 18px;
   text-align: center;
 }
 
+/* =====================
+   HEADINGS
+===================== */
 h1 {
+  margin: 8px 0 12px;
   font-size: 2.4rem;
-  margin-bottom: 24px;
+  font-weight: 800;
 }
 
-/* Button */
+/* =====================
+   INPUT ROW
+===================== */
+input {
+  padding: 12px 14px;
+  font-size: 1rem;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  outline: none;
+  width: 180px;
+}
+
+input:focus {
+  border-color: #111;
+}
+
+/* =====================
+   BUTTONS
+===================== */
 button {
   background: #111;
-  color: white;
+  color: #fff;
   border: none;
   border-radius: 16px;
-  padding: 14px 30px;
-  font-size: 1.1rem;
+  padding: 12px 18px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 button:active {
   transform: scale(0.96);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-/* Card animation wrapper */
-.card-wrapper {
-  margin-top: 32px;
-  perspective: 1000px;
+/* =====================
+   SEATS SECTION
+===================== */
+.seats {
+  width: 100%;
+  max-width: 360px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
-/* Card */
-.card {
-  width: 240px;
-  height: 300px;
-  background: white;
-  border-radius: 22px;
-  padding: 24px;
-  box-shadow: 0 20px 45px rgba(0,0,0,0.2);
+.seat {
+  background: #fff;
+  color: #111;
+  border-radius: 18px;
+  padding: 14px 16px;
+  font-weight: 600;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  border: 2px solid transparent;
+}
+
+.active-seat {
+  border-color: #111;
+}
+
+/* =====================
+   ROLES PANEL
+===================== */
+.roles {
+  width: 100%;
+  max-width: 360px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.12);
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  font-weight: 600;
+}
+
+/* =====================
+   GAME INFO
+===================== */
+.app > div {
+  display: flex;
+  gap: 10px;
   align-items: center;
-  justify-content: center;
-  animation: flipIn 0.5s ease;
 }
 
-/* Card value */
+/* =====================
+   CARD DISPLAY
+===================== */
+.card {
+  margin-top: 12px;
+  background: #fff;
+  border-radius: 22px;
+  padding: 26px 24px;
+  width: 260px;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.18);
+}
+
 .card-value {
-  font-size: 4.5rem;
-  font-weight: 800;
-  margin-bottom: 12px;
+  font-size: 3.2rem;
+  font-weight: 900;
+  margin-bottom: 10px;
 }
 
-/* Card text */
 .card-text {
   font-size: 1.2rem;
   font-weight: 600;
-  color: #444;
   line-height: 1.4;
-  padding: 0 10px;
-}
-
-/* Flip animation */
-@keyframes flipIn {
-  from {
-    transform: rotateY(90deg) scale(0.9);
-    opacity: 0;
-  }
-  to {
-    transform: rotateY(0deg) scale(1);
-    opacity: 1;
-  }
 }
