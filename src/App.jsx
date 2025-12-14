@@ -14,15 +14,15 @@ const cards = [
   "10 – Categories",
   "J – Thumb Master",
   "Q – Question Master",
-  "K – Make a Rule"
+  "K – Make a Rule",
 ];
 
 function App() {
   const [card, setCard] = useState(null);
 
   const drawCard = () => {
-    const random = cards[Math.floor(Math.random() * cards.length)];
-    setCard(random);
+    const randomCard = cards[Math.floor(Math.random() * cards.length)];
+    setCard(randomCard);
   };
 
   return (
@@ -31,16 +31,13 @@ function App() {
 
       <button onClick={drawCard}>Draw Card</button>
 
-      return (
-  <div className="app">
-    <h1>KAD Kings</h1>
+      {card && (
+        <div className="card">
+          {card}
+        </div>
+      )}
+    </div>
+  );
+}
 
-    <button onClick={drawCard}>Draw</button>
-
-    {card && (
-      <div className="card">
-        {card}
-      </div>
-    )}
-  </div>
-);
+export default App;
