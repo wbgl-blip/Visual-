@@ -1,39 +1,43 @@
 import { useState } from "react";
 import "./App.css";
 
-const cards = [
-  "A – Waterfall",
-  "2 – You",
-  "3 – Me",
-  "4 – Floor",
-  "5 – Guys",
-  "6 – Chicks",
-  "7 – Heaven",
-  "8 – Mate",
-  "9 – Rhyme",
-  "10 – Categories",
-  "J – Thumb Master",
-  "Q – Question Master",
-  "K – Make a Rule",
+const RULES = [
+  { card: "A", text: "Waterfall – everyone drinks" },
+  { card: "2", text: "You – pick someone to drink" },
+  { card: "3", text: "Me – you drink" },
+  { card: "4", text: "Floor – last to touch drinks" },
+  { card: "5", text: "Guys drink" },
+  { card: "6", text: "Girls drink" },
+  { card: "7", text: "Heaven – last to raise hand drinks" },
+  { card: "8", text: "Mate – pick a drinking buddy" },
+  { card: "9", text: "Rhyme – loser drinks" },
+  { card: "10", text: "Categories – loser drinks" },
+  { card: "J", text: "Thumb Master" },
+  { card: "Q", text: "Question Master" },
+  { card: "K", text: "Make a rule" }
 ];
 
 function App() {
-  const [card, setCard] = useState(null);
+  const [current, setCurrent] = useState(null);
 
   const drawCard = () => {
-    const randomCard = cards[Math.floor(Math.random() * cards.length)];
-    setCard(randomCard);
+    const random =
+      RULES[Math.floor(Math.random() * RULES.length)];
+    setCurrent(random);
   };
 
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      <button onClick={drawCard}>Draw Card</button>
+      <button onClick={drawCard}>
+        Draw Card
+      </button>
 
-      {card && (
+      {current && (
         <div className="card">
-          {card}
+          <h2>{current.card}</h2>
+          <p>{current.text}</p>
         </div>
       )}
     </div>
