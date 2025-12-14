@@ -31,11 +31,16 @@ function App() {
 
       <button onClick={drawCard}>Draw Card</button>
 
-      {card && (
-  <div key={card + Math.random()} className="card">
-    {card}
-  </div>
-)}
-)
+      return (
+  <div className="app">
+    <h1>KAD Kings</h1>
 
-export default App;
+    <button onClick={drawCard}>Draw</button>
+
+    {card && (
+      <div className="card">
+        {card}
+      </div>
+    )}
+  </div>
+);
