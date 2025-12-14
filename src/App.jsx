@@ -31,9 +31,10 @@ function App() {
 
       <button onClick={drawCard}>Draw Card</button>
 
-      {card && <div className="card">{card}</div>}
-    </div>
-  );
-}
+  {card && (
+  <div key={card + Math.random()} className="card">
+    {card}
+  </div>
+)
 
 export default App;
