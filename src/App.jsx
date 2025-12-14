@@ -2,39 +2,45 @@ import { useEffect, useState } from "react";
 import "./App.css";
 
 /* =========================
-   ANNOUNCER VOICE ENGINE
+   ANNOUNCER ENGINE
    ========================= */
 
 function speak(text, mode = "arena") {
-  if (!window.speechSynthesis) return;
+  if (!window.speechSynthesis || mode === "off") return;
 
   const synth = window.speechSynthesis;
   const utter = new SpeechSynthesisUtterance(text);
   const voices = synth.getVoices();
 
-  // Prefer deep English voices if available
+  // Prefer deep English voices
   const preferred =
-    voices.find(v => v.lang === "en-US" && v.name.toLowerCase().includes("male")) ||
-    voices.find(v => v.lang.startsWith("en")) ||
-    voices[0];
+    voices.find(v =>
+      v.lang.startsWith("en") &&
+      (v.name.toLowerCase().includes("male") ||
+       v.name.toLowerCase().includes("david") ||
+       v.name.toLowerCase().includes("alex"))
+    ) || voices.find(v => v.lang.startsWith("en")) || voices[0];
 
   utter.voice = preferred;
 
+  // ARENA (sports broadcast)
   if (mode === "arena") {
-    utter.rate = 0.85;
+    utter.rate = 0.82;
     utter.pitch = 0.8;
     utter.volume = 1;
   }
 
+  // ACTION HERO (bombastic)
   if (mode === "action") {
-    utter.rate = 0.95;
-    utter.pitch = 0.65;
+    utter.rate = 0.88;
+    utter.pitch = 0.55;
     utter.volume = 1;
   }
 
+  // TOXIC (meaner, faster)
   if (mode === "toxic") {
-    utter.rate = 1.05;
-    utter.pitch = 0.55;
+    utter.rate = 0.95;
+    utter.pitch = 0.5;
     utter.volume = 1;
   }
 
@@ -47,7 +53,6 @@ function speak(text, mode = "arena") {
    ========================= */
 
 const SEAT_COUNT = 8;
-
 const VALUES = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 const SUITS = ["♠","♥","♦","♣"];
 
@@ -96,19 +101,19 @@ export default function App() {
 
     const seatName = seats[currentSeat].name;
 
-    // Persistent roles
+    // Role persistence
     if (card.value === "7") {
       setThumbMaster(currentSeat);
-      speak(`${seatName} is now Thumb Master.`, announcer);
+      speak(`${seatName}. Thumb Master. Try to keep up.`, announcer);
     }
 
     if (card.value === "J") {
       setQuestionMaster(currentSeat);
-      speak(`${seatName} is Question Master.`, announcer);
+      speak(`${seatName}. Question Master. Choose your victims.`, announcer);
     }
 
     if (card.value === "K") {
-      speak(`${seatName}. Make a rule.`, announcer);
+      speak(`${seatName}. Make a rule. Make it hurt.`, announcer);
     }
 
     // Advance turn
@@ -127,7 +132,7 @@ export default function App() {
           onChange={e => setAnnouncer(e.target.value)}
         >
           <option value="arena">🎙 Arena</option>
-          <option value="action">💥 Action</option>
+          <option value="action">💥 Action Hero</option>
           <option value="toxic">☠️ Toxic</option>
           <option value="off">🔇 Off</option>
         </select>
