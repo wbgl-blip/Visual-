@@ -1,4 +1,10 @@
-import { useEffect, useState } from "react";
+import { ref, set } from "firebase/database";
+import { db } from "./firebase";
+
+set(ref(db, "status"), {
+  connected: true,
+  time: Date.now()
+});import { useEffect, useState } from "react";
 import { ref, onValue, update } from "firebase/database";
 import { db } from "./firebase";
 
