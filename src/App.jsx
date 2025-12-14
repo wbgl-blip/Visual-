@@ -5,7 +5,7 @@ const RULES = [
   { card: "A", text: "Waterfall – everyone drinks" },
   { card: "2", text: "You – pick someone to drink" },
   { card: "3", text: "Me – you drink" },
-  { card: "4", text: "whores – we all drink" },
+  { card: "4", text: "Whores – We all drink" },
   { card: "5", text: "Guys drink" },
   { card: "6", text: "Dicks - we all drink" },
   { card: "7", text: "Heaven – last to raise hand drinks" },
@@ -17,7 +17,7 @@ const RULES = [
   { card: "K", text: "Make a rule" }
 ];
 
-function App() {
+export default function App() {
   const [current, setCurrent] = useState(null);
 
   const drawCard = () => {
@@ -27,20 +27,25 @@ function App() {
   };
 
   return (
-  <div className="app">
-    <h1>KAD Kings</h1>
+    <div className="app">
+      <h1>KAD Kings</h1>
 
-    <button onClick={drawCard}>
-      Draw Card
-    </button>
+      <button onClick={drawCard}>
+        Draw Card
+      </button>
 
-    {current && (
-      <div className="card">
-        <div className="card-value">{current.card}</div>
-        <div className="card-text">{current.text}</div>
-      </div>
-    )}
-  </div>
-);
+      {current && (
+        <div className="card-wrapper">
+          <div className="card">
+            <div className="card-value">
+              {current.card}
+            </div>
+            <div className="card-text">
+              {current.text}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
-  export default App;
