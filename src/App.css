@@ -1,0 +1,28 @@
+.app {
+  text-align: center;
+  padding: 2rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+}
+
+button {
+  font-size: 1.2rem;
+  padding: 0.75rem 1.25rem;
+  margin: 1rem 0;
+}
+
+.card {
+  font-size: 1.5rem;
+  margin-top: 1rem;
+}
+
+.medal {
+  margin-top: 1rem;
+  font-weight: bold;
+}
+
+.toggles {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
