@@ -16,17 +16,17 @@ export default function App() {
 
   useEffect(() => {
     const gameRef = ref(db, `games/${GAME_ID}`);
+
     onValue(gameRef, snap => {
       if (!snap.exists()) {
-        update(ref(db, `games/${GAME_ID}`), {
+        update(gameRef, {
           deck: shuffle(FULL_DECK),
           deckCount: 52,
           currentCard: null,
           currentSeat: 0,
           seats: Array.from({ length: 8 }, (_, i) => ({
             name: `Seat ${i + 1}`,
-            drinks: 0,
-            medals: []
+            drinks: 0
           }))
         });
       } else {
@@ -35,14 +35,12 @@ export default function App() {
     });
   }, []);
 
-  if (!game) return <div>Loading…</div>;
-
   function shuffle(arr) {
     return [...arr].sort(() => Math.random() - 0.5);
   }
 
   function drawCard() {
-    if (game.deck.length === 0) return;
+    if (!game.deck.length) return;
 
     const card = game.deck[0];
     const newDeck = game.deck.slice(1);
@@ -55,17 +53,17 @@ export default function App() {
     });
   }
 
-  function addDrink(index) {
-    update(ref(db, `games/${GAME_ID}/seats/${index}`), {
-      drinks: game.seats[index].drinks + 1
+  function addDrink(i) {
+    update(ref(db, `games/${GAME_ID}/seats/${i}`), {
+      drinks: game.seats[i].drinks + 1
     });
   }
 
-  function renameSeat(index, name) {
-    update(ref(db, `games/${GAME_ID}/seats/${index}`), {
-      name
-    });
+  function renameSeat(i, name) {
+    update(ref(db, `games/${GAME_ID}/seats/${i}`), { name });
   }
+
+  if (!game) return <div>Loading…</div>;
 
   return (
     <div className="app">
@@ -81,21 +79,19 @@ export default function App() {
         </div>
       )}
 
-      <div className="seats">
-        {game.seats.map((seat, i) => (
-          <div
-            key={i}
-            className={`seat ${i === game.currentSeat ? "active" : ""}`}
-          >
-            <input
-              value={seat.name}
-              onChange={e => renameSeat(i, e.target.value)}
-            />
-            <span>🍺 {seat.drinks}</span>
-            <button onClick={() => addDrink(i)}>+1</button>
-          </div>
-        ))}
-      </div>
+      {game.seats.map((seat, i) => (
+        <div
+          key={i}
+          className={`seat ${i === game.currentSeat ? "active" : ""}`}
+        >
+          <input
+            value={seat.name}
+            onChange={e => renameSeat(i, e.target.value)}
+          />
+          <span>🍺 {seat.drinks}</span>
+          <button onClick={() => addDrink(i)}>+1</button>
+        </div>
+      ))}
 
       <button className="draw" onClick={drawCard}>
         Draw Card
