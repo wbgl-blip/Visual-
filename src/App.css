@@ -16,14 +16,14 @@ h1 {
 
 .info {
   text-align: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .card {
   background: black;
   color: white;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 14px;
+  border-radius: 14px;
   text-align: center;
   margin-bottom: 12px;
 }
@@ -46,16 +46,21 @@ h1 {
 .seat input {
   border: none;
   font-weight: bold;
+  background: transparent;
 }
 
 .seat input:focus {
   outline: none;
 }
 
+button {
+  padding: 6px 10px;
+}
+
 .draw {
   width: 100%;
   padding: 12px;
-  margin-top: 12px;
+  margin-top: 14px;
   border-radius: 12px;
   font-size: 16px;
 }
