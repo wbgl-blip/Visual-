@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, doc, getDoc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
 import "./App.css";
 
@@ -11,18 +11,20 @@ const shuffle = d => [...d].sort(() => Math.random() - 0.5);
 
 export default function App() {
   const [roomCode, setRoomCode] = useState("");
-  const [room, setRoom] = useState(null);
+  const [roomData, setRoomData] = useState(null);
   const [players, setPlayers] = useState([]);
   const [name, setName] = useState("");
   const [deck, setDeck] = useState([]);
   const [discard, setDiscard] = useState([]);
   const [turn, setTurn] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+
   const [playerId] = useState(() => crypto.randomUUID());
 
-  /* ================= ROOM ================= */
+  /* ================= CREATE ROOM ================= */
   async function createRoom() {
     const code = Math.random().toString(36).substring(2,7).toUpperCase();
+
     await setDoc(doc(db, "rooms", code), {
       hostId: playerId,
       players: [],
@@ -31,23 +33,44 @@ export default function App() {
       turn: 0,
       gameOver: false
     });
+
     setRoomCode(code);
   }
 
+  /* ================= JOIN ROOM ================= */
   async function joinRoom() {
+    if (!roomCode || !name.trim()) return;
+
     const ref = doc(db, "rooms", roomCode);
     const snap = await getDoc(ref);
-    if (!snap.exists()) return alert("Room not found");
-    setRoom(roomCode);
+
+    if (!snap.exists()) {
+      alert("Room not found");
+      return;
+    }
+
+    const data = snap.data();
+
+    // Prevent duplicate joins
+    if (data.players.some(p => p.id === playerId)) return;
+
+    await updateDoc(ref, {
+      players: [
+        ...data.players,
+        { id: playerId, name, drinks: 0 }
+      ]
+    });
   }
 
-  /* ================= SYNC ================= */
+  /* ================= LIVE SYNC ================= */
   useEffect(() => {
     if (!roomCode) return;
+
     return onSnapshot(doc(db, "rooms", roomCode), snap => {
       if (!snap.exists()) return;
+
       const d = snap.data();
-      setRoom(d);
+      setRoomData(d);
       setPlayers(d.players);
       setDeck(d.deck);
       setDiscard(d.discard);
@@ -56,23 +79,14 @@ export default function App() {
     });
   }, [roomCode]);
 
-  /* ================= PLAYER ================= */
-  async function addPlayer() {
-    if (!name.trim()) return;
-    if (players.some(p => p.id === playerId)) return;
-
-    await updateDoc(doc(db, "rooms", roomCode), {
-      players: [...players, { id: playerId, name, drinks: 0 }]
-    });
-    setName("");
-  }
-
-  /* ================= START GAME (FIXED) ================= */
+  /* ================= START GAME ================= */
   async function startGame() {
-    if (!room) return;
-    if (room.hostId !== playerId) return alert("Only host can start");
-    if (players.length < 2) return alert("Need at least 2 players");
-    if (deck.length > 0) return;
+    if (!roomData) return;
+    if (roomData.hostId !== playerId) return;
+    if (players.length < 2) {
+      alert("Need at least 2 players");
+      return;
+    }
 
     await updateDoc(doc(db, "rooms", roomCode), {
       deck: shuffle(buildDeck()),
@@ -82,14 +96,15 @@ export default function App() {
     });
   }
 
-  /* ================= GAMEPLAY ================= */
+  /* ================= DRAW CARD ================= */
   async function drawCard() {
     if (!deck.length) return;
+
     const nextDeck = [...deck];
     const card = nextDeck.pop();
 
     const nextPlayers = [...players];
-    nextPlayers[turn].drinks++;
+    nextPlayers[turn].drinks += 1;
 
     await updateDoc(doc(db, "rooms", roomCode), {
       deck: nextDeck,
@@ -108,7 +123,15 @@ export default function App() {
       {!roomCode && (
         <>
           <button onClick={createRoom}>Create Room</button>
-          <input placeholder="Room Code" onChange={e => setRoomCode(e.target.value.toUpperCase())} />
+          <input
+            placeholder="ROOM CODE"
+            onChange={e => setRoomCode(e.target.value.toUpperCase())}
+          />
+          <input
+            placeholder="Your name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
           <button onClick={joinRoom}>Join Room</button>
         </>
       )}
@@ -117,20 +140,15 @@ export default function App() {
         <>
           <h2>Room: {roomCode}</h2>
 
-          <input
-            value={name}
-            placeholder="Your name"
-            onChange={e => setName(e.target.value)}
-          />
-          <button onClick={addPlayer}>Join</button>
-
           <ul>
             {players.map((p,i)=>(
-              <li key={i}>{p.name}</li>
+              <li key={i}>
+                {p.name} {p.id === roomData?.hostId && "👑"}
+              </li>
             ))}
           </ul>
 
-          {room?.hostId === playerId && (
+          {roomData?.hostId === playerId && (
             <button onClick={startGame}>Start Game</button>
           )}
         </>
@@ -140,9 +158,14 @@ export default function App() {
         <>
           <h2>Turn: {players[turn]?.name}</h2>
           <button onClick={drawCard}>Draw Card</button>
-          <div className="card">
-            {discard.at(-1)?.rank}{discard.at(-1)?.suit}
-          </div>
+          <p>Cards left: {deck.length}</p>
+
+          {discard.length > 0 && (
+            <div className="card">
+              {discard.at(-1).rank}
+              {discard.at(-1).suit}
+            </div>
+          )}
         </>
       )}
 
@@ -152,10 +175,12 @@ export default function App() {
           {[...players]
             .sort((a,b)=>b.drinks-a.drinks)
             .map((p,i)=>(
-              <div key={i}>{p.name} – {p.drinks}</div>
+              <div key={i}>
+                {p.name} — {p.drinks} drinks
+              </div>
             ))}
         </>
       )}
     </div>
   );
-              }
+}
