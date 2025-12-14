@@ -1,113 +1,46 @@
 import { useState } from "react";
 import "./App.css";
 
-const cards = [
-  { rank: "A", text: "Waterfall – everyone drinks" },
-  { rank: "2", text: "You – pick someone to drink" },
-  { rank: "3", text: "Me – you drink" },
-  { rank: "4", text: "Floor – last one drinks" },
-  { rank: "5", text: "Guys drink" },
-  { rank: "6", text: "Girls drink" },
-  { rank: "7", text: "Heaven – last one drinks" },
-  { rank: "8", text: "Mate – pick a drinking buddy" },
-  { rank: "9", text: "Rhyme – mess up, drink" },
-  { rank: "10", text: "Categories – mess up, drink" },
-  { rank: "J", text: "Thumb Master 👆" },
-  { rank: "Q", text: "Questions – answer last, drink" },
-  { rank: "K", text: "Make a Rule 👑" }
+const RULES = [
+  { card: "A", text: "Waterfall – everyone drinks" },
+  { card: "2", text: "You – pick someone to drink" },
+  { card: "3", text: "Me – you drink" },
+  { card: "4", text: "Floor – last to touch drinks" },
+  { card: "5", text: "Guys drink" },
+  { card: "6", text: "Girls drink" },
+  { card: "7", text: "Heaven – last to raise hand drinks" },
+  { card: "8", text: "Mate – pick a drinking buddy" },
+  { card: "9", text: "Rhyme – loser drinks" },
+  { card: "10", text: "Categories – loser drinks" },
+  { card: "J", text: "Thumb Master" },
+  { card: "Q", text: "Question Master" },
+  { card: "K", text: "Make a rule" }
 ];
 
-const medals = {
-  normal: [
-    "Clutch Sip",
-    "Last Man Standing",
-    "Stone Face"
-  ],
-  toxic: [
-    "Certified Menace",
-    "Emotional Damage",
-    "Chaos Agent"
-  ],
-  degenerate: [
-    "Absolute Degenerate",
-    "No Self Respect",
-    "Gremlin Energy"
-  ],
-  nsfw: [
-    "HR Violation",
-    "Unholy Thoughts",
-    "Too Far Bro"
-  ]
-};
-
-export default function App() {
-  const [card, setCard] = useState(null);
-  const [medal, setMedal] = useState(null);
-
-  const [showToxic, setShowToxic] = useState(false);
-  const [showDegenerate, setShowDegenerate] = useState(false);
-  const [showNSFW, setShowNSFW] = useState(false);
+function App() {
+  const [current, setCurrent] = useState(null);
 
   function drawCard() {
-    const newCard = cards[Math.floor(Math.random() * cards.length)];
-    setCard(newCard);
-
-    let pool = [...medals.normal];
-    if (showToxic) pool = pool.concat(medals.toxic);
-    if (showDegenerate) pool = pool.concat(medals.degenerate);
-    if (showNSFW) pool = pool.concat(medals.nsfw);
-
-    const newMedal = pool[Math.floor(Math.random() * pool.length)];
-    setMedal(newMedal);
+    const random = RULES[Math.floor(Math.random() * RULES.length)];
+    setCurrent(random);
   }
 
   return (
     <div className="app">
-      <h1>🍺 KAD Kings Cup</h1>
+      <h1>KAD Kings</h1>
 
-      <button onClick={drawCard}>Draw Card</button>
+      <button onClick={drawCard}>
+        Draw Card
+      </button>
 
-      {card && (
+      {current && (
         <div className="card">
-          <h2>{card.rank}</h2>
-          <p>{card.text}</p>
+          <h2>{current.card}</h2>
+          <p>{current.text}</p>
         </div>
       )}
-
-      {medal && (
-        <div className="medal">
-          🏅 {medal}
-        </div>
-      )}
-
-      <div className="toggles">
-        <label>
-          <input
-            type="checkbox"
-            checked={showToxic}
-            onChange={() => setShowToxic(!showToxic)}
-          />
-          Toxic
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={showDegenerate}
-            onChange={() => setShowDegenerate(!showDegenerate)}
-          />
-          Degenerate
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={showNSFW}
-            onChange={() => setShowNSFW(!showNSFW)}
-          />
-          NSFW
-        </label>
-      </div>
     </div>
   );
 }
+
+export default App;
