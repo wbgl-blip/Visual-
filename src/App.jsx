@@ -3,18 +3,6 @@ import { collection, doc, getDoc, setDoc, updateDoc, onSnapshot } from "firebase
 import { db } from "./firebase";
 import "./App.css";
 
-/* ================= CONFIG ================= */
-const MAX_PLAYERS = 8;
-
-/* ================= MEDALS ================= */
-const MEDALS = {
-  DEGENERATE: { id: "degenerate", icon: "🥴", text: "Walking cautionary tale." },
-  KING: { id: "king", icon: "👑", text: "Power corrupted immediately." },
-  THUMB: { id: "thumb", icon: "👆", text: "Hands up, peasants." },
-  QUESTION: { id: "question", icon: "❓", text: "Every word is a trap." },
-  SPONGE: { id: "sponge", icon: "🍺", text: "Your liver hates you." }
-};
-
 /* ================= CARDS ================= */
 const suits = ["♠","♥","♦","♣"];
 const ranks = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
@@ -22,20 +10,21 @@ const buildDeck = () => suits.flatMap(s => ranks.map(r => ({ suit: s, rank: r })
 const shuffle = d => [...d].sort(() => Math.random() - 0.5);
 
 export default function App() {
-  const [room, setRoom] = useState(null);
   const [roomCode, setRoomCode] = useState("");
+  const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
   const [name, setName] = useState("");
-  const [turn, setTurn] = useState(0);
   const [deck, setDeck] = useState([]);
   const [discard, setDiscard] = useState([]);
+  const [turn, setTurn] = useState(0);
   const [gameOver, setGameOver] = useState(false);
-  const [popup, setPopup] = useState(null);
+  const [playerId] = useState(() => crypto.randomUUID());
 
   /* ================= ROOM ================= */
   async function createRoom() {
     const code = Math.random().toString(36).substring(2,7).toUpperCase();
     await setDoc(doc(db, "rooms", code), {
+      hostId: playerId,
       players: [],
       deck: [],
       discard: [],
@@ -58,6 +47,7 @@ export default function App() {
     return onSnapshot(doc(db, "rooms", roomCode), snap => {
       if (!snap.exists()) return;
       const d = snap.data();
+      setRoom(d);
       setPlayers(d.players);
       setDeck(d.deck);
       setDiscard(d.discard);
@@ -69,18 +59,21 @@ export default function App() {
   /* ================= PLAYER ================= */
   async function addPlayer() {
     if (!name.trim()) return;
-    const ref = doc(db, "rooms", roomCode);
-    const snap = await getDoc(ref);
-    const data = snap.data();
-    if (data.players.length >= MAX_PLAYERS) return;
+    if (players.some(p => p.id === playerId)) return;
 
-    await updateDoc(ref, {
-      players: [...data.players, { name, drinks: 0, medals: [] }]
+    await updateDoc(doc(db, "rooms", roomCode), {
+      players: [...players, { id: playerId, name, drinks: 0 }]
     });
     setName("");
   }
 
+  /* ================= START GAME (FIXED) ================= */
   async function startGame() {
+    if (!room) return;
+    if (room.hostId !== playerId) return alert("Only host can start");
+    if (players.length < 2) return alert("Need at least 2 players");
+    if (deck.length > 0) return;
+
     await updateDoc(doc(db, "rooms", roomCode), {
       deck: shuffle(buildDeck()),
       discard: [],
@@ -92,29 +85,19 @@ export default function App() {
   /* ================= GAMEPLAY ================= */
   async function drawCard() {
     if (!deck.length) return;
-    const ref = doc(db, "rooms", roomCode);
     const nextDeck = [...deck];
     const card = nextDeck.pop();
+
     const nextPlayers = [...players];
     nextPlayers[turn].drinks++;
 
-    if (nextPlayers[turn].drinks === 5)
-      nextPlayers[turn].medals.push(MEDALS.DEGENERATE);
-    if (card.rank === "K") nextPlayers[turn].medals.push(MEDALS.KING);
-    if (card.rank === "J") nextPlayers[turn].medals.push(MEDALS.THUMB);
-    if (card.rank === "Q") nextPlayers[turn].medals.push(MEDALS.QUESTION);
-
-    setPopup(`${nextPlayers[turn].name} drew ${card.rank}${card.suit}`);
-
-    await updateDoc(ref, {
+    await updateDoc(doc(db, "rooms", roomCode), {
       deck: nextDeck,
       discard: [...discard, card],
       players: nextPlayers,
       turn: nextDeck.length ? (turn + 1) % players.length : turn,
       gameOver: nextDeck.length === 0
     });
-
-    setTimeout(() => setPopup(null), 2000);
   }
 
   /* ================= UI ================= */
@@ -130,47 +113,49 @@ export default function App() {
         </>
       )}
 
-      {roomCode && !deck.length && !gameOver && (
-        <div>
-          <h3>Room: {roomCode}</h3>
-          <input value={name} placeholder="Your name" onChange={e => setName(e.target.value)} />
+      {roomCode && deck.length === 0 && !gameOver && (
+        <>
+          <h2>Room: {roomCode}</h2>
+
+          <input
+            value={name}
+            placeholder="Your name"
+            onChange={e => setName(e.target.value)}
+          />
           <button onClick={addPlayer}>Join</button>
 
-          <div className="seats">
-            {players.map((p,i) => <div key={i} className="seat">{p.name}</div>)}
-          </div>
+          <ul>
+            {players.map((p,i)=>(
+              <li key={i}>{p.name}</li>
+            ))}
+          </ul>
 
-          <button onClick={startGame}>Start Game</button>
-        </div>
+          {room?.hostId === playerId && (
+            <button onClick={startGame}>Start Game</button>
+          )}
+        </>
       )}
 
       {deck.length > 0 && !gameOver && (
         <>
-          <h2>Turn: <span className="active">{players[turn]?.name}</span></h2>
+          <h2>Turn: {players[turn]?.name}</h2>
           <button onClick={drawCard}>Draw Card</button>
-          <div className="card">{discard.at(-1)?.rank}{discard.at(-1)?.suit}</div>
-
-          <ul>
-            {players.map((p,i)=>(
-              <li key={i} className={i===turn?"active":""}>
-                {p.name} – {p.drinks}
-                <div className="medals">{p.medals.map(m=>m.icon)}</div>
-              </li>
-            ))}
-          </ul>
+          <div className="card">
+            {discard.at(-1)?.rank}{discard.at(-1)?.suit}
+          </div>
         </>
       )}
 
       {gameOver && (
-        <div className="game-over">
-          <h2>Final Standings</h2>
-          {[...players].sort((a,b)=>b.drinks-a.drinks).map((p,i)=>(
-            <div key={i}>{p.name} – {p.drinks} {p.medals.map(m=>m.icon)}</div>
-          ))}
-        </div>
+        <>
+          <h2>Game Over</h2>
+          {[...players]
+            .sort((a,b)=>b.drinks-a.drinks)
+            .map((p,i)=>(
+              <div key={i}>{p.name} – {p.drinks}</div>
+            ))}
+        </>
       )}
-
-      {popup && <div className="popup">{popup}</div>}
     </div>
   );
-}
+              }
