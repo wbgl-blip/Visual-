@@ -3,29 +3,45 @@ import "./App.css";
 
 /* -------------------- CARD DATA -------------------- */
 const DECK = [
-  { id: 1, text: "Take 1 drink", medal: null },
-  { id: 2, text: "Give 2 drinks", medal: "Giver" },
-  { id: 3, text: "Everyone drinks", medal: "Chaos" },
-  { id: 4, text: "You drink 3", medal: "Tank" },
-  { id: 5, text: "Make a rule", medal: "Lawmaker" },
+  { text: "Take 1 drink", medal: null },
+  { text: "Give 2 drinks", medal: "Giver" },
+  { text: "Everyone drinks", medal: "Chaos" },
+  { text: "Make a rule", medal: "Lawmaker" },
 ];
 
 /* -------------------- ANNOUNCER -------------------- */
-function announce(message) {
-  // LEGAL parody announcer (text-based for now)
-  console.log("ANNOUNCER:", message);
+function speak(text, mode = "hero") {
+  if (!window.speechSynthesis) return;
+
+  const msg = new SpeechSynthesisUtterance(text);
+
+  if (mode === "hero") {
+    msg.pitch = 0.6;
+    msg.rate = 0.9;
+    msg.volume = 1;
+  }
+
+  if (mode === "arena") {
+    msg.pitch = 1.2;
+    msg.rate = 1.05;
+    msg.volume = 1;
+  }
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(msg);
 }
 
 export default function App() {
-  /* -------------------- STATE -------------------- */
   const [players, setPlayers] = useState([]);
   const [nameInput, setNameInput] = useState("");
   const [deck, setDeck] = useState([...DECK]);
-  const [currentCard, setCurrentCard] = useState(null);
   const [turnIndex, setTurnIndex] = useState(0);
+  const [currentCard, setCurrentCard] = useState(null);
   const [medals, setMedals] = useState({});
+  const [announcerOn, setAnnouncerOn] = useState(true);
+  const [announcerMode, setAnnouncerMode] = useState("hero");
 
-  /* -------------------- PLAYER HANDLING -------------------- */
+  /* -------------------- ADD PLAYER -------------------- */
   function addPlayer() {
     if (!nameInput.trim()) return;
     setPlayers([...players, nameInput.trim()]);
@@ -38,36 +54,35 @@ export default function App() {
 
     const nextDeck = [...deck];
     const card = nextDeck.shift();
-
-    const currentPlayer = players[turnIndex];
+    const player = players[turnIndex];
 
     setDeck(nextDeck);
-    setCurrentCard({ ...card, player: currentPlayer });
+    setCurrentCard({ ...card, player });
 
-    resolveCard(card, currentPlayer);
-
-    setTurnIndex((turnIndex + 1) % players.length);
-  }
-
-  /* -------------------- CARD RESOLUTION -------------------- */
-  function resolveCard(card, player) {
-    announce(`${player}: ${card.text}`);
+    if (announcerOn) {
+      speak(`${player}. ${card.text}`, announcerMode);
+    }
 
     if (card.medal) {
       awardMedal(player, card.medal);
     }
+
+    setTurnIndex((turnIndex + 1) % players.length);
   }
 
   /* -------------------- MEDALS -------------------- */
   function awardMedal(player, medal) {
     setMedals((prev) => {
-      const playerMedals = prev[player] || [];
-      if (playerMedals.includes(medal)) return prev;
+      const existing = prev[player] || [];
+      if (existing.includes(medal)) return prev;
 
-      announce(`${player} earned the ${medal} medal!`);
+      if (announcerOn) {
+        speak(`${player} earns the ${medal} medal!`, "arena");
+      }
+
       return {
         ...prev,
-        [player]: [...playerMedals, medal],
+        [player]: [...existing, medal],
       };
     });
   }
@@ -77,7 +92,7 @@ export default function App() {
     <div className="app">
       <h1>🍻 Party Card Game</h1>
 
-      {/* ADD PLAYERS */}
+      {/* CONTROLS */}
       <div className="panel">
         <input
           value={nameInput}
@@ -87,7 +102,30 @@ export default function App() {
         <button onClick={addPlayer}>Add Player</button>
       </div>
 
-      {/* PLAYER LIST */}
+      {/* ANNOUNCER TOGGLES */}
+      <div className="panel">
+        <label>
+          <input
+            type="checkbox"
+            checked={announcerOn}
+            onChange={() => setAnnouncerOn(!announcerOn)}
+          />{" "}
+          Announcer On
+        </label>
+
+        <button
+          className="secondary"
+          onClick={() =>
+            setAnnouncerMode(
+              announcerMode === "hero" ? "arena" : "hero"
+            )
+          }
+        >
+          Mode: {announcerMode}
+        </button>
+      </div>
+
+      {/* PLAYERS */}
       <div className="panel">
         <h2>Players</h2>
         {players.map((p, i) => (
@@ -103,13 +141,13 @@ export default function App() {
         <div className="deck" onClick={drawCard}>
           🂠 ({deck.length})
         </div>
-        <small>Tap deck to draw</small>
+        <small>Tap to draw</small>
       </div>
 
       {/* CURRENT CARD */}
       {currentCard && (
         <div className="panel card">
-          <h3>{currentCard.player}</h3>
+          <strong>{currentCard.player}</strong>
           <p>{currentCard.text}</p>
         </div>
       )}
@@ -117,7 +155,6 @@ export default function App() {
       {/* MEDALS */}
       <div className="panel">
         <h2>🏅 Medals</h2>
-        {Object.keys(medals).length === 0 && <p>No medals yet</p>}
         {Object.entries(medals).map(([player, list]) => (
           <div key={player}>
             <strong>{player}</strong>: {list.join(", ")}
