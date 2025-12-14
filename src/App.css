@@ -42,12 +42,26 @@ button:active {
 }
 
 .card {
-  margin-top: 28px;
-  background: white;
-  border-radius: 18px;
-  padding: 26px 32px;
-  font-size: 1.6rem;
-  font-weight: 600;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.12);
-  min-width: 220px;
+  margin-top: 32px;
+  background: linear-gradient(145deg, #ffffff, #ececec);
+  border-radius: 22px;
+  padding: 36px 40px;
+  font-size: 2rem;
+  font-weight: 700;
+  box-shadow:
+    0 20px 40px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.6);
+  min-width: 260px;
+  animation: pop 0.2s ease-out;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
