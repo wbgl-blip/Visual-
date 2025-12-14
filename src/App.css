@@ -1,28 +1,46 @@
-.app {
-  text-align: center;
-  padding: 2rem;
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0f0f0f;
   font-family: system-ui, -apple-system, BlinkMacSystemFont;
 }
 
-button {
-  font-size: 1.2rem;
-  padding: 0.75rem 1.25rem;
-  margin: 1rem 0;
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  padding: 16px;
+}
+
+h1 {
+  margin-bottom: 24px;
 }
 
 .card {
-  font-size: 1.5rem;
-  margin-top: 1rem;
-}
-
-.medal {
-  margin-top: 1rem;
-  font-weight: bold;
-}
-
-.toggles {
-  margin-top: 2rem;
+  width: 260px;
+  height: 160px;
+  background: #1f1f1f;
+  border-radius: 12px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 1rem;
+  text-align: center;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+.draw-btn {
+  padding: 12px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  background: #e11d48;
+  color: white;
 }
