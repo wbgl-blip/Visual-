@@ -1,162 +1,137 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import "./App.css";
 
-import gameStartSound from "./assets/game-start.mp3";
-import gameOverSound from "./assets/game-over.mp3";
-
-/* =======================
-   CARD + RULE DEFINITIONS
-======================= */
-
-const SUITS = ["♠", "♥", "♦", "♣"];
-const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-
-const RULES = {
-  A: "Waterfall",
-  2: "You",
-  3: "Me",
-  4: "Whores – everyone drinks",
-  5: "Guys",
-  6: "Dicks – everyone drinks",
-  7: "Heaven (persistent)",
-  8: "Mate",
-  9: "Rhyme",
-  10: "Categories",
-  J: "Thumb Master (persistent)",
-  Q: "Question Master (persistent)",
-  K: "Make a Rule"
-};
-
-/* =======================
-   UTILITIES
-======================= */
+/* ----- CARD SETUP ----- */
+const suits = ["♠", "♥", "♦", "♣"];
+const ranks = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
 function buildDeck() {
   const deck = [];
-  SUITS.forEach(suit => {
-    RANKS.forEach(rank => {
+  suits.forEach(suit => {
+    ranks.forEach(rank => {
       deck.push({ suit, rank });
     });
   });
-  return deck.sort(() => Math.random() - 0.5);
+  return deck;
 }
 
-/* =======================
-   APP
-======================= */
-
 export default function App() {
-  const [players, setPlayers] = useState([
-    { name: "Player 1", drinks: 0 },
-    { name: "Player 2", drinks: 0 }
-  ]);
-
+  const [players, setPlayers] = useState([]);
+  const [nameInput, setNameInput] = useState("");
   const [deck, setDeck] = useState([]);
-  const [card, setCard] = useState(null);
-  const [active, setActive] = useState(0);
+  const [discard, setDiscard] = useState([]);
+  const [turn, setTurn] = useState(0);
   const [gameOver, setGameOver] = useState(false);
 
-  const [thumbMaster, setThumbMaster] = useState(null);
-  const [questionMaster, setQuestionMaster] = useState(null);
-  const [heavenMaster, setHeavenMaster] = useState(null);
-
-  const [hasStarted, setHasStarted] = useState(false);
-
-  /* =======================
-     AUDIO (CREATED ONCE)
-  ======================= */
-
-  const startAudio = new Audio(gameStartSound);
-  const gameOverAudio = new Audio(gameOverSound);
-
-  /* =======================
-     GAME FLOW
-  ======================= */
+  /* ----- PLAYER LOGIC ----- */
+  function addPlayer() {
+    if (!nameInput.trim()) return;
+    setPlayers([...players, { name: nameInput, drinks: 0 }]);
+    setNameInput("");
+  }
 
   function startGame() {
-    setDeck(buildDeck());
-    setCard(null);
+    if (players.length < 2) return;
+    setDeck(shuffle(buildDeck()));
+    setDiscard([]);
+    setTurn(0);
     setGameOver(false);
-    setHasStarted(false);
-    setActive(0);
-    setThumbMaster(null);
-    setQuestionMaster(null);
-    setHeavenMaster(null);
   }
 
+  function shuffle(array) {
+    return [...array].sort(() => Math.random() - 0.5);
+  }
+
+  /* ----- GAMEPLAY ----- */
   function drawCard() {
-    if (!deck.length || gameOver) return;
+    if (deck.length === 0) return;
 
-    // 🔊 Play start sound on FIRST draw only
-    if (!hasStarted) {
-      startAudio.play();
-      setHasStarted(true);
-    }
+    const nextDeck = [...deck];
+    const card = nextDeck.pop();
 
-    const [next, ...rest] = deck;
-    setDeck(rest);
-    setCard(next);
+    const nextPlayers = [...players];
+    nextPlayers[turn].drinks += 1;
 
-    // Persistent role logic
-    if (next.rank === "J") setThumbMaster(active);
-    if (next.rank === "Q") setQuestionMaster(active);
-    if (next.rank === "7") setHeavenMaster(active);
+    setPlayers(nextPlayers);
+    setDeck(nextDeck);
+    setDiscard([...discard, card]);
 
-    // 🔊 LAST CARD = GAME OVER SOUND
-    if (rest.length === 0) {
-      gameOverAudio.play();
+    if (nextDeck.length === 0) {
       setGameOver(true);
-      return;
+    } else {
+      setTurn((turn + 1) % players.length);
     }
-
-    setActive((active + 1) % players.length);
   }
-
-  /* =======================
-     RENDER
-  ======================= */
 
   return (
     <div className="app">
-      <h1>KAD Kings</h1>
+      <h1>Card Drinking Game</h1>
 
-      {!deck.length && !gameOver && (
-        <button onClick={startGame}>Start Game</button>
+      {/* SETUP */}
+      {deck.length === 0 && !gameOver && (
+        <div className="setup">
+          <input
+            value={nameInput}
+            placeholder="Player name"
+            onChange={e => setNameInput(e.target.value)}
+          />
+          <button onClick={addPlayer}>Add Player</button>
+
+          <ul>
+            {players.map((p, i) => (
+              <li key={i}>{p.name}</li>
+            ))}
+          </ul>
+
+          <button className="start" onClick={startGame}>
+            Start Game
+          </button>
+        </div>
       )}
 
+      {/* GAME */}
       {deck.length > 0 && !gameOver && (
         <>
-          <button onClick={drawCard}>Draw Card</button>
+          <h2>Turn: <span className="active">{players[turn].name}</span></h2>
+
+          <button className="draw" onClick={drawCard}>
+            Draw Card
+          </button>
 
           <p>Cards left: {deck.length}</p>
 
-          {card && (
+          {discard.length > 0 && (
             <div className="card">
-              <div className="card-value">{card.rank}{card.suit}</div>
-              <div className="card-text">{RULES[card.rank]}</div>
+              {discard[discard.length - 1].rank}
+              {discard[discard.length - 1].suit}
             </div>
           )}
 
-          <div className="players">
+          <h3>Scores</h3>
+          <ul>
             {players.map((p, i) => (
-              <div
-                key={i}
-                className={`player ${i === active ? "active" : ""}`}
-              >
-                {p.name}
-                {thumbMaster === i && " 👆"}
-                {questionMaster === i && " ❓"}
-                {heavenMaster === i && " ☁️"}
-              </div>
+              <li key={i} className={i === turn ? "active" : ""}>
+                {p.name}: {p.drinks} drinks
+              </li>
             ))}
-          </div>
+          </ul>
         </>
       )}
 
+      {/* GAME OVER */}
       {gameOver && (
-        <div className="end">
+        <div className="game-over">
           <h2>Game Over</h2>
-          <p>Thanks for playing 🍻</p>
+          <h3>Leaderboard</h3>
+          <ol>
+            {[...players]
+              .sort((a, b) => b.drinks - a.drinks)
+              .map((p, i) => (
+                <li key={i}>
+                  {p.name} – {p.drinks} drinks
+                </li>
+              ))}
+          </ol>
         </div>
       )}
     </div>
