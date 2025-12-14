@@ -37,9 +37,11 @@ export default function App() {
   const [setup, setSetup] = useState(true);
   const [gameOver, setGameOver] = useState(false);
 
-  const [players, setPlayers] = useState([{ name: "", drinks: 0, medals: [] }]);
-  const [active, setActive] = useState(0);
+  const [players, setPlayers] = useState([
+    { name: "", drinks: 0, medals: [] }
+  ]);
 
+  const [active, setActive] = useState(0);
   const [deck, setDeck] = useState([]);
   const [card, setCard] = useState(null);
 
@@ -80,7 +82,10 @@ export default function App() {
 
   function addPlayer() {
     if (players.length < 8) {
-      setPlayers([...players, { name: "", drinks: 0, medals: [] }]);
+      setPlayers([
+        ...players,
+        { name: "", drinks: 0, medals: [] }
+      ]);
     }
   }
 
@@ -98,33 +103,30 @@ export default function App() {
     setDeck(rest);
     setCard(next);
 
-    const currentPlayer = active;
+    const current = active;
 
-    // Role logic
+    // Roles & medals
     if (next.rank === "J") {
-      setThumbMaster(currentPlayer);
-      giveMedal(currentPlayer, MEDALS.J);
+      setThumbMaster(current);
+      giveMedal(current, MEDALS.J);
     }
 
     if (next.rank === "Q") {
-      setQuestionMaster(currentPlayer);
-      giveMedal(currentPlayer, MEDALS.Q);
+      setQuestionMaster(current);
+      giveMedal(current, MEDALS.Q);
     }
 
     if (next.rank === "7") {
-      setHeavenMaster(currentPlayer);
-      giveMedal(currentPlayer, MEDALS[7]);
+      setHeavenMaster(current);
+      giveMedal(current, MEDALS[7]);
     }
 
     if (next.rank === "K") {
-      giveMedal(currentPlayer, MEDALS.K);
+      giveMedal(current, MEDALS.K);
     }
 
-    // Advance turn
-    const nextTurn = (active + 1) % players.length;
-    setActive(nextTurn);
+    setActive((active + 1) % players.length);
 
-    // End game
     if (rest.length === 0) {
       setGameOver(true);
     }
@@ -161,18 +163,30 @@ export default function App() {
   }
 
   if (gameOver) {
+    const leaderboard = [...players].sort((a, b) => {
+      if (b.drinks !== a.drinks) return b.drinks - a.drinks;
+      return b.medals.length - a.medals.length;
+    });
+
     return (
       <div className="app">
-        <h1>Game Over 🍻</h1>
+        <h1>Final Leaderboard 🏆</h1>
 
-        {players.map((p, i) => (
+        {leaderboard.map((p, i) => (
           <div key={i} className="player">
-            <strong>{p.name}</strong>
+            <strong>
+              {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : ""}
+              {p.name}
+            </strong>
+
             <div>🍺 Drinks: {p.drinks}</div>
-            <div>
-              {p.medals.map(m => (
-                <span key={m} className="medal">{m}</span>
-              ))}
+
+            <div className="medals">
+              {p.medals.length
+                ? p.medals.map(m => (
+                    <span key={m} className="medal">{m}</span>
+                  ))
+                : <span>No medals</span>}
             </div>
           </div>
         ))}
