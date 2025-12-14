@@ -1,153 +1,46 @@
 import { useEffect, useState } from "react";
+import { ref, onValue, update } from "firebase/database";
+import { db } from "./firebase";
 import "./App.css";
 
-/* =========================
-   ANNOUNCER ENGINE
-   ========================= */
-
-function speak(text, mode = "arena") {
-  if (!window.speechSynthesis || mode === "off") return;
-
-  const synth = window.speechSynthesis;
-  const utter = new SpeechSynthesisUtterance(text);
-  const voices = synth.getVoices();
-
-  // Prefer deep English voices
-  const preferred =
-    voices.find(v =>
-      v.lang.startsWith("en") &&
-      (v.name.toLowerCase().includes("male") ||
-       v.name.toLowerCase().includes("david") ||
-       v.name.toLowerCase().includes("alex"))
-    ) || voices.find(v => v.lang.startsWith("en")) || voices[0];
-
-  utter.voice = preferred;
-
-  // ARENA (sports broadcast)
-  if (mode === "arena") {
-    utter.rate = 0.82;
-    utter.pitch = 0.8;
-    utter.volume = 1;
-  }
-
-  // ACTION HERO (bombastic)
-  if (mode === "action") {
-    utter.rate = 0.88;
-    utter.pitch = 0.55;
-    utter.volume = 1;
-  }
-
-  // TOXIC (meaner, faster)
-  if (mode === "toxic") {
-    utter.rate = 0.95;
-    utter.pitch = 0.5;
-    utter.volume = 1;
-  }
-
-  synth.cancel();
-  synth.speak(utter);
-}
-
-/* =========================
-   GAME CONSTANTS
-   ========================= */
-
-const SEAT_COUNT = 8;
-const VALUES = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-const SUITS = ["♠","♥","♦","♣"];
-
-function buildDeck() {
-  const deck = [];
-  SUITS.forEach(s =>
-    VALUES.forEach(v => deck.push({ value: v, suit: s }))
-  );
-  return deck.sort(() => Math.random() - 0.5);
-}
-
-/* =========================
-   APP
-   ========================= */
-
 export default function App() {
-  const [deck, setDeck] = useState(buildDeck());
-  const [currentSeat, setCurrentSeat] = useState(0);
-  const [thumbMaster, setThumbMaster] = useState(null);
-  const [questionMaster, setQuestionMaster] = useState(null);
-  const [announcer, setAnnouncer] = useState("arena");
+  const GAME_ID = "default-room";
 
-  const [seats, setSeats] = useState(
-    Array.from({ length: SEAT_COUNT }, (_, i) => ({
-      name: `Seat ${i + 1}`,
-      drinks: 0
-    }))
-  );
+  const [game, setGame] = useState(null);
 
   useEffect(() => {
-    window.speechSynthesis.getVoices();
+    const gameRef = ref(db, `games/${GAME_ID}`);
+    onValue(gameRef, snap => {
+      setGame(snap.val());
+    });
   }, []);
 
+  if (!game) return <div>Loading…</div>;
+
   function addDrink(index) {
-    const copy = [...seats];
-    copy[index].drinks += 1;
-    setSeats(copy);
+    const seat = game.seats[index];
+    update(ref(db, `games/${GAME_ID}/seats/${index}`), {
+      drinks: seat.drinks + 1
+    });
   }
 
-  function drawCard() {
-    if (!deck.length) return;
-
-    const nextDeck = [...deck];
-    const card = nextDeck.pop();
-    setDeck(nextDeck);
-
-    const seatName = seats[currentSeat].name;
-
-    // Role persistence
-    if (card.value === "7") {
-      setThumbMaster(currentSeat);
-      speak(`${seatName}. Thumb Master. Try to keep up.`, announcer);
-    }
-
-    if (card.value === "J") {
-      setQuestionMaster(currentSeat);
-      speak(`${seatName}. Question Master. Choose your victims.`, announcer);
-    }
-
-    if (card.value === "K") {
-      speak(`${seatName}. Make a rule. Make it hurt.`, announcer);
-    }
-
-    // Advance turn
-    setCurrentSeat((currentSeat + 1) % seats.length);
+  if (game.finished) {
+    return <EndGameCeremony game={game} />;
   }
 
   return (
     <div className="app">
       <h1>KAD Kings</h1>
 
-      <div className="top-bar">
-        <span>🂠 {deck.length} cards left</span>
-
-        <select
-          value={announcer}
-          onChange={e => setAnnouncer(e.target.value)}
-        >
-          <option value="arena">🎙 Arena</option>
-          <option value="action">💥 Action Hero</option>
-          <option value="toxic">☠️ Toxic</option>
-          <option value="off">🔇 Off</option>
-        </select>
-      </div>
-
-      <div className="masters">
-        👇 Thumb: {thumbMaster !== null ? seats[thumbMaster].name : "None"} <br />
-        ❓ Question: {questionMaster !== null ? seats[questionMaster].name : "None"}
+      <div className="info">
+        Cards left: {game.deckCount}
       </div>
 
       <div className="seats">
-        {seats.map((s, i) => (
+        {game.seats.map((s, i) => (
           <div
             key={i}
-            className={`seat ${i === currentSeat ? "active" : ""}`}
+            className={`seat ${i === game.currentSeat ? "active" : ""}`}
           >
             <span>{s.name}</span>
             <span>🍺 {s.drinks}</span>
@@ -155,10 +48,28 @@ export default function App() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
 
-      <button className="draw-btn" onClick={drawCard}>
-        Draw Card
-      </button>
+/* =========================
+   END GAME CEREMONY
+   ========================= */
+
+function EndGameCeremony({ game }) {
+  const sorted = [...game.seats].sort((a, b) => b.drinks - a.drinks);
+
+  return (
+    <div className="endgame">
+      <h1>Game Over</h1>
+
+      <h2>Scoreboard</h2>
+
+      {sorted.map((s, i) => (
+        <div key={i} className="score-row">
+          {i + 1}. {s.name} — 🍺 {s.drinks}
+        </div>
+      ))}
     </div>
   );
 }
