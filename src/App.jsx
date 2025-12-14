@@ -1,30 +1,29 @@
 import { useState } from "react";
 import "./App.css";
 
-const CARDS = [
-  "Ace – Waterfall",
-  "2 – You pick someone to drink",
-  "3 – Me (you drink)",
+const cards = [
+  "A – Waterfall",
+  "2 – You",
+  "3 – Me",
   "4 – Floor",
-  "5 – Guys drink",
-  "6 – Girls drink",
+  "5 – Guys",
+  "6 – Chicks",
   "7 – Heaven",
   "8 – Mate",
   "9 – Rhyme",
   "10 – Categories",
-  "Jack – Thumb Master",
-  "Queen – Question Master",
-  "King – Make a rule",
+  "J – Thumb Master",
+  "Q – Question Master",
+  "K – Make a Rule"
 ];
 
-export default function App() {
+function App() {
   const [card, setCard] = useState(null);
 
-  function drawCard() {
-    const random =
-      CARDS[Math.floor(Math.random() * CARDS.length)];
+  const drawCard = () => {
+    const random = cards[Math.floor(Math.random() * cards.length)];
     setCard(random);
-  }
+  };
 
   return (
     <div className="app">
@@ -32,7 +31,9 @@ export default function App() {
 
       <button onClick={drawCard}>Draw Card</button>
 
-      {card && <p className="card">{card}</p>}
+      {card && <div className="card">{card}</div>}
     </div>
   );
 }
+
+export default App;
