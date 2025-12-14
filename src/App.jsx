@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+// 🃏 Kings Cup cards (CORRECTED RULES)
 const cards = [
   { card: 'Ace', rule: 'Waterfall – everyone drinks, you start.' },
   { card: '2', rule: 'You – choose someone to drink.' },
@@ -11,65 +12,131 @@ const cards = [
   { card: '8', rule: 'Mate – pick a drinking buddy.' },
   { card: '9', rule: 'Rhyme – say a word, others rhyme.' },
   { card: '10', rule: 'Categories – pick a category.' },
-  { card: 'Jack', rule: 'Make a rule.' },
-  { card: 'Queen', rule: 'Question master.' },
-  { card: 'King', rule: 'Pour into the King’s Cup.' }
+  { card: 'Jack', rule: 'Thumb Master – last to put their thumb down drinks.' },
+  { card: 'Queen', rule: 'Question Master.' },
+  { card: 'King', rule: 'Make a rule and pour into the King’s Cup.' },
+]
+
+// 🍻 Degenerate medals
+const degenerateMedals = [
+  '🍺 THIRSTY',
+  '🍻 ALCOHOLIC',
+  '🛢️ HUMAN KEG',
+  '💀 ON THIN ICE',
+  '☠️ DEATH WISH',
+  '🚑 MEDIC!',
+]
+
+// 😈 NSFW / talking-shit medals
+const nsfwMedals = [
+  '🤡 CLOWN ENERGY',
+  '🗑️ TRASH PULL',
+  '🍼 LIGHTWEIGHT',
+  '🧠❌ NO THOUGHTS',
+  '👀 CAN’T READ',
+  '🫠 ABSOLUTELY FOLDED',
+]
+
+// ☠️ Ultra-toxic medals
+const toxicMedals = [
+  '🚮 DOGSHIT LUCK',
+  '🎮 SKILL ISSUE',
+  '🧠 ROOM TEMPERATURE IQ',
+  '🥴 YOU GOOD, BRO?',
+  '⚰️ SHOULD’VE STAYED SOBER',
+  '🪦 PACK IT UP',
+  '📉 FELL OFF',
+  '👑➡️🤡 THIS YOUR KING?',
+  '🧲 EVERYONE HATES YOU',
+  '🎯 DESIGNATED VICTIM',
 ]
 
 export default function App() {
   const [currentCard, setCurrentCard] = useState(null)
+  const [lastCard, setLastCard] = useState(null)
+  const [drawCount, setDrawCount] = useState(0)
+  const [medal, setMedal] = useState(null)
+  const [toxicMode, setToxicMode] = useState(true)
+
+  const randomFrom = (arr) =>
+    arr[Math.floor(Math.random() * arr.length)]
 
   const drawCard = () => {
-    const random = cards[Math.floor(Math.random() * cards.length)]
-    setCurrentCard(random)
+    const nextCard = cards[Math.floor(Math.random() * cards.length)]
+    const nextCount = drawCount + 1
+
+    setLastCard(currentCard)
+    setCurrentCard(nextCard)
+    setDrawCount(nextCount)
+
+    // 🥇 MEDAL PRIORITY (top → bottom)
+
+    // First draw
+    if (nextCount === 1) {
+      setMedal('🥇 FIRST BLOOD')
+      return
+    }
+
+    // King-specific medals
+    if (nextCard.card === 'King') {
+      setMedal('📜 RULE LORD')
+      return
+    }
+
+    // Jack-specific medal
+    if (nextCard.card === 'Jack') {
+      setMedal('🧠 THUMB TYRANT')
+      return
+    }
+
+    // Same card twice
+    if (lastCard && lastCard.card === nextCard.card) {
+      setMedal('🔥 DOUBLE DOWN')
+      return
+    }
+
+    // Degenerate escalation
+    if (nextCount === 3) {
+      setMedal('🍺 THIRSTY')
+      return
+    }
+
+    if (nextCount === 5) {
+      setMedal('🍻 ALCOHOLIC')
+      return
+    }
+
+    if (nextCount >= 8) {
+      setMedal('🛢️ HUMAN KEG')
+      return
+    }
+
+    // ☠️ Toxic / NSFW random roast (25% chance)
+    if (toxicMode && Math.random() < 0.25) {
+      const pool = [
+        ...degenerateMedals,
+        ...nsfwMedals,
+        ...toxicMedals,
+      ]
+      setMedal(randomFrom(pool))
+      return
+    }
+
+    // No medal this draw
+    setMedal(null)
   }
 
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>👑 KAD Kings</h1>
 
-      <button style={styles.button} onClick={drawCard}>
-        Draw Card
-      </button>
+      <label style={styles.toggle}>
+        <input
+          type="checkbox"
+          checked={toxicMode}
+          onChange={() => setToxicMode(!toxicMode)}
+        />
+        <span> Toxic Mode</span>
+      </label>
 
-      {currentCard && (
-        <div style={styles.card}>
-          <h2>{currentCard.card}</h2>
-          <p>{currentCard.rule}</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '1.5rem',
-    fontFamily: 'system-ui, sans-serif',
-    textAlign: 'center'
-  },
-  title: {
-    fontSize: '2.5rem'
-  },
-  button: {
-    padding: '1rem 2rem',
-    fontSize: '1.2rem',
-    borderRadius: '12px',
-    border: 'none',
-    background: '#000',
-    color: '#fff'
-  },
-  card: {
-    marginTop: '1rem',
-    padding: '1.5rem',
-    borderRadius: '12px',
-    background: '#f4f4f4',
-    width: '80%',
-    maxWidth: '300px'
-  }
-}
+      <
