@@ -1,31 +1,70 @@
 import { useEffect, useState } from "react";
 import { ref, onValue, update } from "firebase/database";
 import { db } from "./firebase";
-import "./App.css";
+
+const GAME_ID = "default-room";
+
+const FULL_DECK = [
+  "A♠","2♠","3♠","4♠","5♠","6♠","7♠","8♠","9♠","10♠","J♠","Q♠","K♠",
+  "A♥","2♥","3♥","4♥","5♥","6♥","7♥","8♥","9♥","10♥","J♥","Q♥","K♥",
+  "A♦","2♦","3♦","4♦","5♦","6♦","7♦","8♦","9♦","10♦","J♦","Q♦","K♦",
+  "A♣","2♣","3♣","4♣","5♣","6♣","7♣","8♣","9♣","10♣","J♣","Q♣","K♣"
+];
 
 export default function App() {
-  const GAME_ID = "default-room";
-
   const [game, setGame] = useState(null);
 
   useEffect(() => {
     const gameRef = ref(db, `games/${GAME_ID}`);
     onValue(gameRef, snap => {
-      setGame(snap.val());
+      if (!snap.exists()) {
+        update(ref(db, `games/${GAME_ID}`), {
+          deck: shuffle(FULL_DECK),
+          deckCount: 52,
+          currentCard: null,
+          currentSeat: 0,
+          seats: Array.from({ length: 8 }, (_, i) => ({
+            name: `Seat ${i + 1}`,
+            drinks: 0,
+            medals: []
+          }))
+        });
+      } else {
+        setGame(snap.val());
+      }
     });
   }, []);
 
   if (!game) return <div>Loading…</div>;
 
-  function addDrink(index) {
-    const seat = game.seats[index];
-    update(ref(db, `games/${GAME_ID}/seats/${index}`), {
-      drinks: seat.drinks + 1
+  function shuffle(arr) {
+    return [...arr].sort(() => Math.random() - 0.5);
+  }
+
+  function drawCard() {
+    if (game.deck.length === 0) return;
+
+    const card = game.deck[0];
+    const newDeck = game.deck.slice(1);
+
+    update(ref(db, `games/${GAME_ID}`), {
+      deck: newDeck,
+      deckCount: newDeck.length,
+      currentCard: card,
+      currentSeat: (game.currentSeat + 1) % game.seats.length
     });
   }
 
-  if (game.finished) {
-    return <EndGameCeremony game={game} />;
+  function addDrink(index) {
+    update(ref(db, `games/${GAME_ID}/seats/${index}`), {
+      drinks: game.seats[index].drinks + 1
+    });
+  }
+
+  function renameSeat(index, name) {
+    update(ref(db, `games/${GAME_ID}/seats/${index}`), {
+      name
+    });
   }
 
   return (
@@ -33,43 +72,34 @@ export default function App() {
       <h1>KAD Kings</h1>
 
       <div className="info">
-        Cards left: {game.deckCount}
+        🃏 {game.deckCount} cards left
       </div>
 
+      {game.currentCard && (
+        <div className="card">
+          Drew: <strong>{game.currentCard}</strong>
+        </div>
+      )}
+
       <div className="seats">
-        {game.seats.map((s, i) => (
+        {game.seats.map((seat, i) => (
           <div
             key={i}
             className={`seat ${i === game.currentSeat ? "active" : ""}`}
           >
-            <span>{s.name}</span>
-            <span>🍺 {s.drinks}</span>
+            <input
+              value={seat.name}
+              onChange={e => renameSeat(i, e.target.value)}
+            />
+            <span>🍺 {seat.drinks}</span>
             <button onClick={() => addDrink(i)}>+1</button>
           </div>
         ))}
       </div>
-    </div>
-  );
-}
 
-/* =========================
-   END GAME CEREMONY
-   ========================= */
-
-function EndGameCeremony({ game }) {
-  const sorted = [...game.seats].sort((a, b) => b.drinks - a.drinks);
-
-  return (
-    <div className="endgame">
-      <h1>Game Over</h1>
-
-      <h2>Scoreboard</h2>
-
-      {sorted.map((s, i) => (
-        <div key={i} className="score-row">
-          {i + 1}. {s.name} — 🍺 {s.drinks}
-        </div>
-      ))}
+      <button className="draw" onClick={drawCard}>
+        Draw Card
+      </button>
     </div>
   );
 }
